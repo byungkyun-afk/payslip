@@ -28,26 +28,28 @@ export async function POST(request: NextRequest) {
 
   const employeeMap = new Map(employees?.map(e => [e.id, e]) ?? [])
 
-  // 모든 페이지 병렬 처리
+  // 1단계: PDF 페이지 추출 (순차 - pdf-lib 병렬 충돌 방지)
+  const pageBuffers: { employeeId: string; pdfBytes: Uint8Array }[] = []
+  for (const { pageIndex, employeeId } of mappings) {
+    const newPdf = await PDFDocument.create()
+    const [page] = await newPdf.copyPages(srcPdf, [pageIndex])
+    newPdf.addPage(page)
+    const pdfBytes = await newPdf.save()
+    pageBuffers.push({ employeeId, pdfBytes })
+  }
+
+  // 2단계: Cloudinary 업로드 + DB 저장 (병렬)
   const results = await Promise.all(
-    mappings.map(async ({ pageIndex, employeeId }) => {
+    pageBuffers.map(async ({ employeeId, pdfBytes }) => {
       const employee = employeeMap.get(employeeId)
       if (!employee) {
         return { employeeId, employeeName: null, payslipId: null, success: false, error: '직원 없음' }
       }
 
       try {
-        // 페이지 추출
-        const newPdf = await PDFDocument.create()
-        const [page] = await newPdf.copyPages(srcPdf, [pageIndex])
-        newPdf.addPage(page)
-        const pdfBytes = await newPdf.save()
-
-        // Cloudinary 업로드
         const filename = `${employee.name}_${payYear}${String(payMonth).padStart(2, '0')}`
         const { public_id } = await uploadPayslipPdf(Buffer.from(pdfBytes), filename)
 
-        // DB 저장
         const { data: payslip, error: dbError } = await supabase
           .from('payslips')
           .upsert({
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
 
         return { employeeId, employeeName: employee.name, payslipId: payslip.id, success: true }
       } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : '업로드 실패'
+        const message = e instanceof Error ? e.message : String(e)
         return { employeeId, employeeName: employee.name, payslipId: null, success: false, error: message }
       }
     })
