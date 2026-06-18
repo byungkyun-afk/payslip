@@ -21,21 +21,28 @@ export async function POST(request: NextRequest) {
     .select('id, name')
     .eq('is_active', true)
 
-  // 각 페이지 텍스트 추출 후 이름 매칭
+  // pdfjs-dist로 각 페이지 텍스트 추출 → 직원 이름 매칭
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require('pdf-parse')
+  const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+
+  const uint8array = new Uint8Array(buffer)
+  const pdfDoc = await pdfjsLib.getDocument({
+    data: uint8array,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  }).promise
 
   const suggestions: { pageIndex: number; employeeId: string | null; employeeName: string | null }[] = []
 
   for (let i = 0; i < pageCount; i++) {
     try {
-      const newPdf = await PDFDocument.create()
-      const [page] = await newPdf.copyPages(srcPdf, [i])
-      newPdf.addPage(page)
-      const pdfBytes = await newPdf.save()
-
-      const parsed = await pdfParse(Buffer.from(pdfBytes))
-      const text: string = parsed.text
+      const page = await pdfDoc.getPage(i + 1)
+      const textContent = await page.getTextContent()
+      const text: string = textContent.items
+        .map((item: { str: string }) => item.str)
+        .join(' ')
 
       const matched = employees?.find(emp => text.includes(emp.name))
       suggestions.push({

@@ -2,15 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { PDFDocument } from 'pdf-lib'
 import { createServiceClient } from '@/lib/supabase'
 import { uploadPayslipPdf } from '@/lib/cloudinary'
-import { sendPayslipAlimtalk } from '@/lib/coolsms'
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData()
   const file = formData.get('file') as File
   const payYear = parseInt(formData.get('pay_year') as string)
   const payMonth = parseInt(formData.get('pay_month') as string)
-  const sendAlimtalk = formData.get('send_alimtalk') === 'true'
-  // mappings: JSON 배열 [{ pageIndex: 0, employeeId: 'uuid' }, ...]
   const mappingsRaw = formData.get('mappings') as string
   const mappings: { pageIndex: number; employeeId: string }[] = JSON.parse(mappingsRaw)
 
@@ -25,7 +22,6 @@ export async function POST(request: NextRequest) {
   const results = []
 
   for (const { pageIndex, employeeId } of mappings) {
-    // 직원 정보 조회
     const { data: employee } = await supabase
       .from('employees')
       .select('*')
@@ -33,11 +29,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!employee) {
-      results.push({ employeeId, success: false, error: '직원 없음' })
+      results.push({ employeeId, employeeName: null, payslipId: null, success: false, error: '직원 없음' })
       continue
     }
 
-    // 해당 페이지만 추출해서 새 PDF 생성
+    // 페이지 추출
     const newPdf = await PDFDocument.create()
     const [page] = await newPdf.copyPages(srcPdf, [pageIndex])
     newPdf.addPage(page)
@@ -60,26 +56,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (dbError) {
-      results.push({ employeeId, success: false, error: dbError.message })
+      results.push({ employeeId, employeeName: employee.name, payslipId: null, success: false, error: dbError.message })
       continue
     }
 
-    // 알림톡 발송
-    if (sendAlimtalk) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL
-      await sendPayslipAlimtalk({
-        to: employee.phone,
-        employeeName: employee.name,
-        payMonth: `${payYear}년 ${payMonth}월`,
-        accessUrl: `${appUrl}/view/${payslip.access_token}`,
-      })
-      await supabase
-        .from('payslips')
-        .update({ is_notified: true, notified_at: new Date().toISOString() })
-        .eq('id', payslip.id)
-    }
-
-    results.push({ employeeId, employeeName: employee.name, success: true })
+    results.push({ employeeId, employeeName: employee.name, payslipId: payslip.id, success: true })
   }
 
   return NextResponse.json({ results })
