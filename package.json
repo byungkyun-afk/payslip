@@ -11,7 +11,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2",
     "pdf-lib": "^1.17.1",
-    "unpdf": "^0.11.0",
     "cloudinary": "^2",
     "coolsms-node-sdk": "^2",
     "next": "16.2.9",
