@@ -67,7 +67,16 @@ export async function POST(request: NextRequest) {
 
         return { employeeId, employeeName: employee.name, payslipId: payslip.id, success: true }
       } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : String(e)
+        let message = '알 수 없는 오류'
+        if (e instanceof Error) {
+          message = e.message
+        } else if (typeof e === 'object' && e !== null) {
+          const obj = e as Record<string, unknown>
+          const inner = obj.error as Record<string, unknown> | undefined
+          message = (inner?.message as string) ?? JSON.stringify(e)
+        } else {
+          message = String(e)
+        }
         return { employeeId, employeeName: employee.name, payslipId: null, success: false, error: message }
       }
     })
