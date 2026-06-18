@@ -3,21 +3,21 @@
 import { useState, useEffect } from 'react'
 import { Employee } from '@/types'
 
-interface UploadItem {
-  employee: Employee
-  file: File | null
+interface FileMapping {
+  file: File
+  employeeId: string  // '' = 미배정
   status: 'pending' | 'uploading' | 'done' | 'error'
   message?: string
 }
 
 export default function UploadPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [items, setItems] = useState<UploadItem[]>([])
   const [payYear, setPayYear] = useState(new Date().getFullYear().toString())
   const [payMonth, setPayMonth] = useState((new Date().getMonth() + 1).toString())
   const [sendAlimtalk, setSendAlimtalk] = useState(true)
+  const [mappings, setMappings] = useState<FileMapping[]>([])
   const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/employees')
@@ -25,51 +25,40 @@ export default function UploadPage() {
       .then(({ data }) => setEmployees(data?.filter((e: Employee) => e.is_active) ?? []))
   }, [])
 
-  // 체크박스 토글
-  function toggleEmployee(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        setItems(i => i.filter(x => x.employee.id !== id))
-      } else {
-        next.add(id)
-        const emp = employees.find(e => e.id === id)!
-        setItems(i => [...i, { employee: emp, file: null, status: 'pending' }])
-      }
-      return next
+  // 파일명에서 직원 이름 자동 매칭
+  function autoMatch(files: File[], emps: Employee[]): FileMapping[] {
+    return files.map(file => {
+      const matched = emps.find(e => file.name.includes(e.name))
+      return { file, employeeId: matched?.id ?? '', status: 'pending' }
     })
   }
 
-  // 전체 선택/해제
-  function toggleAll() {
-    if (selected.size === employees.length) {
-      setSelected(new Set())
-      setItems([])
-    } else {
-      setSelected(new Set(employees.map(e => e.id)))
-      setItems(employees.map(emp => ({ employee: emp, file: null, status: 'pending' })))
-    }
+  function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    setMappings(autoMatch(files, employees))
+    setDone(false)
   }
 
-  // 파일 지정
-  function setFile(empId: string, file: File | null) {
-    setItems(prev => prev.map(i => i.employee.id === empId ? { ...i, file } : i))
+  function setEmployeeId(idx: number, empId: string) {
+    setMappings(prev => prev.map((m, i) => i === idx ? { ...m, employeeId: empId } : m))
   }
 
-  const allFilesReady = items.length > 0 && items.every(i => i.file)
+  const allMapped = mappings.length > 0 && mappings.every(m => m.employeeId)
+  // 이미 배정된 직원 ID 목록 (중복 방지용)
+  const assignedIds = mappings.map(m => m.employeeId).filter(Boolean)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!allFilesReady) return
+    if (!allMapped) return
     setLoading(true)
 
-    for (const item of items) {
-      setItems(prev => prev.map(i => i.employee.id === item.employee.id ? { ...i, status: 'uploading' } : i))
+    for (let i = 0; i < mappings.length; i++) {
+      const m = mappings[i]
+      setMappings(prev => prev.map((x, idx) => idx === i ? { ...x, status: 'uploading' } : x))
 
       const formData = new FormData()
-      formData.append('file', item.file!)
-      formData.append('employee_id', item.employee.id)
+      formData.append('file', m.file)
+      formData.append('employee_id', m.employeeId)
       formData.append('pay_year', payYear)
       formData.append('pay_month', payMonth)
       formData.append('send_alimtalk', sendAlimtalk.toString())
@@ -77,19 +66,17 @@ export default function UploadPage() {
       const res = await fetch('/api/admin/upload', { method: 'POST', body: formData })
       const json = await res.json()
 
-      setItems(prev => prev.map(i =>
-        i.employee.id === item.employee.id
-          ? { ...i, status: res.ok ? 'done' : 'error', message: res.ok ? undefined : json.error }
-          : i
+      setMappings(prev => prev.map((x, idx) =>
+        idx === i ? { ...x, status: res.ok ? 'done' : 'error', message: res.ok ? undefined : json.error } : x
       ))
     }
+
     setLoading(false)
+    setDone(true)
   }
 
   const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i)
   const months = Array.from({ length: 12 }, (_, i) => i + 1)
-  const allSelected = employees.length > 0 && selected.size === employees.length
-  const someSelected = selected.size > 0 && !allSelected
 
   return (
     <div>
@@ -112,56 +99,67 @@ export default function UploadPage() {
           </div>
         </div>
 
-        {/* 직원 선택 */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              ref={el => { if (el) el.indeterminate = someSelected }}
-              onChange={toggleAll}
-              className="w-4 h-4 rounded"
-            />
-            <span className="text-sm font-semibold text-gray-700">
-              전체 선택 ({selected.size}/{employees.length}명)
-            </span>
-          </div>
-
-          <div className="divide-y divide-gray-50">
-            {employees.map(emp => {
-              const isChecked = selected.has(emp.id)
-              const item = items.find(i => i.employee.id === emp.id)
-              return (
-                <div key={emp.id} className={`px-5 py-3 flex items-center gap-4 ${isChecked ? 'bg-blue-50' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => toggleEmployee(emp.id)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <div className="w-28">
-                    <span className="text-sm font-medium text-gray-900">{emp.name}</span>
-                    {emp.department && <span className="text-xs text-gray-500 ml-1">({emp.department})</span>}
-                  </div>
-
-                  {isChecked && (
-                    <div className="flex items-center gap-3 flex-1">
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={e => setFile(emp.id, e.target.files?.[0] ?? null)}
-                        className="text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-100 file:text-blue-700"
-                      />
-                      {item?.status === 'uploading' && <span className="text-xs text-blue-600">업로드 중...</span>}
-                      {item?.status === 'done' && <span className="text-xs text-green-600">✓ 완료</span>}
-                      {item?.status === 'error' && <span className="text-xs text-red-600">✗ {item.message}</span>}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+        {/* PDF 일괄 업로드 */}
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">PDF 파일 선택</h2>
+          <p className="text-xs text-gray-400 mb-3">파일명에 직원 이름이 포함되어 있으면 자동으로 매칭됩니다.</p>
+          <input
+            type="file"
+            accept=".pdf"
+            multiple
+            onChange={handleFilesChange}
+            className="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
         </div>
+
+        {/* 파일-직원 매핑 */}
+        {mappings.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 grid grid-cols-2 gap-4 text-xs font-semibold text-gray-500 uppercase">
+              <span>파일명</span>
+              <span>직원 배정</span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {mappings.map((m, i) => (
+                <div key={i} className="px-5 py-3 grid grid-cols-2 gap-4 items-center">
+                  <span className="text-sm text-gray-700 truncate" title={m.file.name}>
+                    📄 {m.file.name}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {m.status === 'pending' || m.status === 'uploading' ? (
+                      <select
+                        value={m.employeeId}
+                        onChange={e => setEmployeeId(i, e.target.value)}
+                        disabled={m.status === 'uploading'}
+                        className={`flex-1 border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                          ${!m.employeeId ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                      >
+                        <option value="">직원 선택</option>
+                        {employees.map(emp => (
+                          <option
+                            key={emp.id}
+                            value={emp.id}
+                            disabled={assignedIds.filter(id => id === emp.id).length > 1}
+                          >
+                            {emp.name} {emp.department ? `(${emp.department})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
+                    {m.status === 'uploading' && <span className="text-xs text-blue-600 whitespace-nowrap">업로드 중...</span>}
+                    {m.status === 'done' && <span className="text-xs text-green-600 font-medium">✓ 완료</span>}
+                    {m.status === 'error' && <span className="text-xs text-red-600">✗ {m.message}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {!allMapped && (
+              <div className="px-5 py-2 bg-amber-50 border-t border-amber-100">
+                <p className="text-xs text-amber-700">⚠ 직원이 배정되지 않은 파일이 있습니다.</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 알림톡 발송 */}
         <div className="flex items-center gap-2">
@@ -170,12 +168,18 @@ export default function UploadPage() {
           <label htmlFor="send_alimtalk" className="text-sm text-gray-700">카카오 알림톡 발송</label>
         </div>
 
+        {done && mappings.every(m => m.status === 'done') && (
+          <div className="p-3 rounded-lg bg-green-50 text-green-700 text-sm">
+            ✓ {mappings.length}명 업로드 완료!{sendAlimtalk ? ' 알림톡이 발송되었습니다.' : ''}
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={loading || !allFilesReady}
+          disabled={loading || !allMapped}
           className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? '업로드 중...' : `${selected.size}명 업로드 및 발송`}
+          {loading ? `업로드 중...` : `${mappings.length}명 업로드${sendAlimtalk ? ' 및 알림톡 발송' : ''}`}
         </button>
       </form>
     </div>
