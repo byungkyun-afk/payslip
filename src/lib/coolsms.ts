@@ -1,6 +1,6 @@
-import coolsms from 'coolsms-node-sdk'
+import { CoolsmsMessageService } from 'coolsms-node-sdk'
 
-const messageService = new coolsms.default(
+const messageService = new CoolsmsMessageService(
   process.env.COOLSMS_API_KEY!,
   process.env.COOLSMS_API_SECRET!
 )
