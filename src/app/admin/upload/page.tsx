@@ -30,7 +30,7 @@ export default function UploadPage() {
       .then(({ data }) => setEmployees(data?.filter((e: Employee) => e.is_active) ?? []))
   }, [])
 
-  // PDF 업로드 → 페이지 수 확인
+  // PDF 업로드 → 페이지 수 확인 + 이름 자동 매칭
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
@@ -40,12 +40,12 @@ export default function UploadPage() {
     const fd = new FormData()
     fd.append('file', f)
     const res = await fetch('/api/admin/split-pdf', { method: 'POST', body: fd })
-    const { pageCount: count } = await res.json()
+    const { pageCount: count, suggestions } = await res.json()
 
     setPageCount(count)
     setMappings(Array.from({ length: count }, (_, i) => ({
       pageIndex: i,
-      employeeId: '',
+      employeeId: suggestions?.[i]?.employeeId ?? '',
       status: 'pending',
     })))
     setStep('map')
