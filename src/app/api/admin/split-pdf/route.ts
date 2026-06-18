@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PDFDocument } from 'pdf-lib'
 import { createServiceClient } from '@/lib/supabase'
+import { extractText, getDocumentProxy } from 'unpdf'
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData()
@@ -21,36 +22,25 @@ export async function POST(request: NextRequest) {
     .select('id, name')
     .eq('is_active', true)
 
-  // pdfjs-dist로 각 페이지 텍스트 추출 → 직원 이름 매칭
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js')
-  pdfjsLib.GlobalWorkerOptions.workerSrc = ''
-
-  const uint8array = new Uint8Array(buffer)
-  const pdfDoc = await pdfjsLib.getDocument({
-    data: uint8array,
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    useSystemFonts: true,
-  }).promise
-
+  // 각 페이지 텍스트 추출 → 직원 이름 매칭
   const suggestions: { pageIndex: number; employeeId: string | null; employeeName: string | null }[] = []
 
-  for (let i = 0; i < pageCount; i++) {
-    try {
-      const page = await pdfDoc.getPage(i + 1)
-      const textContent = await page.getTextContent()
-      const text: string = textContent.items
-        .map((item: { str: string }) => item.str)
-        .join(' ')
+  try {
+    const pdf = await getDocumentProxy(new Uint8Array(buffer))
+    const { text: pageTexts } = await extractText(pdf, { mergePages: false })
 
+    for (let i = 0; i < pageCount; i++) {
+      const text = pageTexts[i] ?? ''
       const matched = employees?.find(emp => text.includes(emp.name))
       suggestions.push({
         pageIndex: i,
         employeeId: matched?.id ?? null,
         employeeName: matched?.name ?? null,
       })
-    } catch {
+    }
+  } catch {
+    // 텍스트 추출 실패 시 빈 suggestions 반환 (수동 선택)
+    for (let i = 0; i < pageCount; i++) {
       suggestions.push({ pageIndex: i, employeeId: null, employeeName: null })
     }
   }
