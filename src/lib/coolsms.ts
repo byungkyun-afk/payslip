@@ -1,6 +1,7 @@
-import { CoolsmsMessageService } from 'coolsms-node-sdk'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Coolsms = require('coolsms-node-sdk').default
 
-const messageService = new CoolsmsMessageService(
+const messageService = new Coolsms(
   process.env.COOLSMS_API_KEY!,
   process.env.COOLSMS_API_SECRET!
 )
