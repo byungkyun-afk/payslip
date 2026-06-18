@@ -67,11 +67,12 @@ export default function UploadPage() {
   }
 
   const assignedIds = mappings.map(m => m.employeeId).filter(Boolean)
+  const assignedMappings = mappings.filter(m => m.employeeId)
   const allMapped = mappings.length > 0 && mappings.every(m => m.employeeId)
 
-  // 업로드 (알림톡 없이)
+  // 업로드 (알림톡 없이) - 배정된 페이지만 업로드
   async function handleUpload() {
-    if (!file || !allMapped) return
+    if (!file || assignedMappings.length === 0) return
     setLoading(true)
     setLoadingMsg('PDF 분리 업로드 중...')
 
@@ -79,7 +80,7 @@ export default function UploadPage() {
     fd.append('file', file)
     fd.append('pay_year', payYear)
     fd.append('pay_month', payMonth)
-    fd.append('mappings', JSON.stringify(mappings))
+    fd.append('mappings', JSON.stringify(assignedMappings))
 
     const res = await fetch('/api/admin/split-upload', { method: 'POST', body: fd })
     const json = await res.json()
@@ -228,10 +229,10 @@ export default function UploadPage() {
 
             <button
               onClick={handleUpload}
-              disabled={loading || !allMapped}
+              disabled={loading || assignedMappings.length === 0}
               className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? loadingMsg : `${mappings.length}명 PDF 업로드`}
+              {loading ? loadingMsg : `${assignedMappings.length}명 PDF 업로드${!allMapped ? ` (${mappings.length - assignedMappings.length}페이지 건너뜀)` : ''}`}
             </button>
           </>
         )}
