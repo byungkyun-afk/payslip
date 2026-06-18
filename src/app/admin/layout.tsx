@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import LogoutButton from './LogoutButton'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -24,22 +25,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {children}
       </main>
     </div>
-  )
-}
-
-function LogoutButton() {
-  return (
-    <form action="/api/admin/login" method="DELETE">
-      <button
-        type="button"
-        onClick={async () => {
-          await fetch('/api/admin/login', { method: 'DELETE' })
-          window.location.href = '/admin/login'
-        }}
-        className="text-sm text-gray-500 hover:text-gray-900"
-      >
-        로그아웃
-      </button>
-    </form>
   )
 }
