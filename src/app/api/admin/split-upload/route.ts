@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PDFDocument } from 'pdf-lib'
 import { createServiceClient } from '@/lib/supabase'
-import { uploadPayslipPdf } from '@/lib/cloudinary'
+import { uploadPayslipToStorage } from '@/lib/storage'
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData()
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     pageBuffers.push({ employeeId, pdfBytes })
   }
 
-  // 2단계: Cloudinary 업로드 + DB 저장 (병렬)
+  // 2단계: Supabase Storage 업로드 + DB 저장 (병렬)
   const results = await Promise.all(
     pageBuffers.map(async ({ employeeId, pdfBytes }) => {
       const employee = employeeMap.get(employeeId)
@@ -47,8 +47,10 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const filename = `${employeeId}_${payYear}${String(payMonth).padStart(2, '0')}`
-        const { public_id, secure_url } = await uploadPayslipPdf(Buffer.from(pdfBytes), filename)
+        const monthPadded = String(payMonth).padStart(2, '0')
+        const storagePath = `${employeeId}/${payYear}${monthPadded}.pdf`
+
+        await uploadPayslipToStorage(Buffer.from(pdfBytes), storagePath)
 
         const { data: payslip, error: dbError } = await supabase
           .from('payslips')
@@ -56,8 +58,10 @@ export async function POST(request: NextRequest) {
             employee_id: employeeId,
             pay_year: payYear,
             pay_month: payMonth,
-            cloudinary_id: public_id,
-            pdf_url: secure_url,
+            storage_path: storagePath,
+            // 기존 컬럼 초기화 (Cloudinary 잔재 제거)
+            cloudinary_id: null,
+            pdf_url: null,
           }, { onConflict: 'employee_id,pay_year,pay_month' })
           .select()
           .single()

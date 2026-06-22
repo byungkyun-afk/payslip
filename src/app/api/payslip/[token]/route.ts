@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { createSignedUrl } from '@/lib/storage'
 
 // 토큰으로 명세서 조회 + 주민번호 인증
 export async function POST(
@@ -32,6 +33,16 @@ export async function POST(
     return NextResponse.json({ error: '주민번호 앞 6자리가 일치하지 않습니다.' }, { status: 401 })
   }
 
+  // PDF URL 생성 (Supabase Storage 서명 URL, 24시간 유효)
+  let pdf_url: string | null = null
+  if (payslip.storage_path) {
+    try {
+      pdf_url = await createSignedUrl(payslip.storage_path, 86400)
+    } catch {
+      pdf_url = null
+    }
+  }
+
   // 최초 열람 시각 기록
   if (!payslip.downloaded_at) {
     await supabase
@@ -45,6 +56,6 @@ export async function POST(
     employee_name: payslip.employee.name,
     pay_year: payslip.pay_year,
     pay_month: payslip.pay_month,
-    pdf_url: payslip.pdf_url ?? payslip.cloudinary_id,
+    pdf_url,
   })
 }
