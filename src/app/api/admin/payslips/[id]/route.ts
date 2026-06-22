@@ -10,13 +10,27 @@ export async function GET(
 
   const { data: payslip } = await supabase
     .from('payslips')
-    .select('pdf_url')
+    .select('pdf_url, cloudinary_id')
     .eq('id', id)
     .single()
 
-  if (!payslip?.pdf_url) {
+  if (!payslip) {
     return NextResponse.json({ error: '명세서 없음' }, { status: 404 })
   }
 
-  return NextResponse.json({ url: payslip.pdf_url })
+  const pdfUrl = payslip.pdf_url ?? payslip.cloudinary_id
+
+  // 서버에서 Cloudinary PDF를 가져와서 브라우저로 중계
+  const res = await fetch(pdfUrl)
+  if (!res.ok) {
+    return NextResponse.json({ error: `PDF 불러오기 실패: ${res.status}` }, { status: 502 })
+  }
+
+  const pdfBuffer = await res.arrayBuffer()
+  return new NextResponse(pdfBuffer, {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'inline',
+    },
+  })
 }

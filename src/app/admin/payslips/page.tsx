@@ -108,11 +108,7 @@ export default function PayslipsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={async () => {
-                        const res = await fetch(`/api/admin/payslips/${p.id}`)
-                        const { url } = await res.json()
-                        window.open(url, '_blank')
-                      }}
+                      onClick={() => window.open(`/api/admin/payslips/${p.id}`, '_blank')}
                       className="text-xs text-blue-600 hover:underline"
                     >
                       PDF 보기
