@@ -19,6 +19,6 @@ export async function GET(
     return NextResponse.json({ error: '명세서 없음' }, { status: 404 })
   }
 
-  const url = generateSignedUrl(payslip.cloudinary_id, 1800)
+  const url = generateSignedUrl(payslip.cloudinary_id)
   return NextResponse.json({ url })
 }
