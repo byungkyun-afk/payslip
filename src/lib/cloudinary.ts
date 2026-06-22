@@ -17,6 +17,7 @@ export async function uploadPayslipPdf(
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         resource_type: 'raw',
+        type: 'authenticated',
         folder: 'payslips',
         public_id: filename,
         format: 'pdf',
