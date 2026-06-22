@@ -31,11 +31,9 @@ export async function uploadPayslipPdf(
 }
 
 // 서명된 URL 생성 (일정 시간 후 만료)
-export function generateSignedUrl(publicId: string, expiresInSeconds = 259200) { // 기본 3일
+export function generateSignedUrl(publicId: string) {
   return cloudinary.url(publicId, {
     resource_type: 'raw',
     secure: true,
-    sign_url: true,
-    expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
   })
 }
