@@ -42,7 +42,7 @@ export async function POST(
   }
 
   // Cloudinary 서명 URL 생성 (1시간)
-  const signedUrl = generateSignedUrl(payslip.cloudinary_id, 3600)
+  const signedUrl = generateSignedUrl(payslip.cloudinary_id)
 
   return NextResponse.json({
     success: true,
