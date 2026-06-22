@@ -82,7 +82,7 @@ export default function PayslipsPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['직원', '직위', '알림톡 발송', '열람 여부'].map(h => (
+                {['직원', '직위', '알림톡 발송', '열람 여부', ''].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-medium text-gray-600">{h}</th>
                 ))}
               </tr>
@@ -105,6 +105,18 @@ export default function PayslipsPage() {
                     {p.downloaded_at
                       ? <span className="text-blue-600">✓ {formatDate(p.downloaded_at)}</span>
                       : <span className="text-gray-400">미열람</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={async () => {
+                        const res = await fetch(`/api/admin/payslips/${p.id}`)
+                        const { url } = await res.json()
+                        window.open(url, '_blank')
+                      }}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      PDF 보기
+                    </button>
                   </td>
                 </tr>
               ))}
