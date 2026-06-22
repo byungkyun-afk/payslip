@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
       try {
         const filename = `${employeeId}_${payYear}${String(payMonth).padStart(2, '0')}`
-        const { public_id } = await uploadPayslipPdf(Buffer.from(pdfBytes), filename)
+        const { public_id, secure_url } = await uploadPayslipPdf(Buffer.from(pdfBytes), filename)
 
         const { data: payslip, error: dbError } = await supabase
           .from('payslips')
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
             pay_year: payYear,
             pay_month: payMonth,
             cloudinary_id: public_id,
+            pdf_url: secure_url,
           }, { onConflict: 'employee_id,pay_year,pay_month' })
           .select()
           .single()

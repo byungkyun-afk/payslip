@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { generateSignedUrl } from '@/lib/cloudinary'
 
 export async function GET(
   _request: NextRequest,
@@ -11,14 +10,13 @@ export async function GET(
 
   const { data: payslip } = await supabase
     .from('payslips')
-    .select('*')
+    .select('pdf_url')
     .eq('id', id)
     .single()
 
-  if (!payslip) {
+  if (!payslip?.pdf_url) {
     return NextResponse.json({ error: '명세서 없음' }, { status: 404 })
   }
 
-  const url = generateSignedUrl(payslip.cloudinary_id)
-  return NextResponse.json({ url })
+  return NextResponse.json({ url: payslip.pdf_url })
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { generateSignedUrl } from '@/lib/cloudinary'
 
 // 토큰으로 명세서 조회 + 주민번호 인증
 export async function POST(
@@ -41,14 +40,11 @@ export async function POST(
       .eq('id', payslip.id)
   }
 
-  // Cloudinary 서명 URL 생성 (1시간)
-  const signedUrl = generateSignedUrl(payslip.cloudinary_id)
-
   return NextResponse.json({
     success: true,
     employee_name: payslip.employee.name,
     pay_year: payslip.pay_year,
     pay_month: payslip.pay_month,
-    pdf_url: signedUrl,
+    pdf_url: payslip.pdf_url ?? payslip.cloudinary_id,
   })
 }
