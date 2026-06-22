@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const filename = `${employee.name}_${payYear}${String(payMonth).padStart(2, '0')}`
+        const filename = `${employeeId}_${payYear}${String(payMonth).padStart(2, '0')}`
         const { public_id } = await uploadPayslipPdf(Buffer.from(pdfBytes), filename)
 
         const { data: payslip, error: dbError } = await supabase
