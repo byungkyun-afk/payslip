@@ -33,7 +33,10 @@ export async function POST(request: NextRequest) {
         accessUrl: `${appUrl}/view/${payslip.access_token}`,
       })
       if (!sendResult.success) {
-        throw new Error(JSON.stringify(sendResult.error))
+        const errMsg = sendResult.error instanceof Error
+          ? sendResult.error.message
+          : JSON.stringify(sendResult.error)
+        throw new Error(errMsg)
       }
       await supabase
         .from('payslips')

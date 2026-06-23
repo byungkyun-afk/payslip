@@ -23,8 +23,6 @@ export async function sendPayslipAlimtalk({
     const result = await messageService.sendOne({
       to,
       from: process.env.COOLSMS_SENDER!,
-      type: 'ATA',
-      text: `[급여명세서] ${employeeName}님의 ${payMonth} 급여명세서가 등록되었습니다. ${accessUrl}`,
       kakaoOptions: {
         pfId: process.env.COOLSMS_KAKAO_PFID!,
         templateId: process.env.COOLSMS_KAKAO_TEMPLATE_ID!,
