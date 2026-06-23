@@ -179,7 +179,7 @@ export default function UploadPage() {
               accept=".pdf"
               onChange={handleFileChange}
               disabled={loading}
-              className="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="cursor-pointer text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
             />
             {loading && <p className="text-xs text-blue-600 mt-2">{loadingMsg}</p>}
             {pageCount > 0 && (

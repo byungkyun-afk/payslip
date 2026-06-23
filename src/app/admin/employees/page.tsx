@@ -71,7 +71,7 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">직원 관리</h1>
         <button onClick={openAdd}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 cursor-pointer">
           + 직원 추가
         </button>
       </div>
@@ -100,9 +100,9 @@ export default function EmployeesPage() {
                   <td className="px-4 py-3">
                     <div className="flex gap-2 justify-end">
                       <button onClick={() => openEdit(emp)}
-                        className="text-blue-600 hover:underline text-xs">수정</button>
+                        className="text-blue-600 hover:underline text-xs cursor-pointer">수정</button>
                       <button onClick={() => handleDelete(emp.id, emp.name)}
-                        className="text-red-500 hover:underline text-xs">삭제</button>
+                        className="text-red-500 hover:underline text-xs cursor-pointer">삭제</button>
                     </div>
                   </td>
                 </tr>
