@@ -26,12 +26,15 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await sendPayslipAlimtalk({
+      const sendResult = await sendPayslipAlimtalk({
         to: payslip.employees.phone,
         employeeName: payslip.employees.name,
         payMonth: `${payYear}년 ${payMonth}월`,
         accessUrl: `${appUrl}/view/${payslip.access_token}`,
       })
+      if (!sendResult.success) {
+        throw new Error(JSON.stringify(sendResult.error))
+      }
       await supabase
         .from('payslips')
         .update({ is_notified: true, notified_at: new Date().toISOString() })
