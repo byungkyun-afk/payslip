@@ -47,24 +47,15 @@ export default function ViewPage({ params }: { params: Promise<{ token: string }
           <p className="text-gray-500 text-sm mb-6">
             {payslip.pay_year}년 {payslip.pay_month}월
           </p>
-          <div className="flex gap-3 justify-center">
-            <a
-              href={payslip.pdf_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700"
-            >
-              PDF 열람
-            </a>
+          <div className="flex justify-center">
             <a
               href={payslip.pdf_url}
               download
-              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50"
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700"
             >
               다운로드
             </a>
           </div>
-          <p className="text-xs text-gray-400 mt-4">링크는 1시간 후 만료됩니다.</p>
         </div>
       </div>
     )

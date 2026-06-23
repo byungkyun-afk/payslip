@@ -37,7 +37,7 @@ export async function POST(
   let pdf_url: string | null = null
   if (payslip.storage_path) {
     try {
-      pdf_url = await createSignedUrl(payslip.storage_path, 86400)
+      pdf_url = await createSignedUrl(payslip.storage_path, 604800) // 7일
     } catch {
       pdf_url = null
     }
