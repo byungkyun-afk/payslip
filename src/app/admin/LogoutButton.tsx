@@ -7,7 +7,7 @@ export default function LogoutButton() {
         await fetch('/api/admin/login', { method: 'DELETE' })
         window.location.href = '/admin/login'
       }}
-      className="text-sm text-gray-500 hover:text-gray-900"
+      className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer"
     >
       로그아웃
     </button>
