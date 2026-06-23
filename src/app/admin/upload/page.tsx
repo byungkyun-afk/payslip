@@ -6,6 +6,7 @@ import { Employee } from '@/types'
 interface PageMapping {
   pageIndex: number
   employeeId: string
+  detectedName: string | null  // PDF에서 읽은 이름
 }
 
 interface UploadResult {
@@ -57,6 +58,7 @@ export default function UploadPage() {
     setMappings(Array.from({ length: count }, (_, i) => ({
       pageIndex: i,
       employeeId: suggestions?.[i]?.employeeId ?? '',
+      detectedName: suggestions?.[i]?.employeeName ?? null,
     })))
     setStep('map')
     setLoading(false)
@@ -192,33 +194,42 @@ export default function UploadPage() {
         {step === 'map' && (
           <>
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 grid grid-cols-2 gap-4 text-xs font-semibold text-gray-500">
+              <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 grid grid-cols-3 gap-4 text-xs font-semibold text-gray-500">
                 <span>페이지</span>
+                <span>PDF 감지 이름</span>
                 <span>직원 배정</span>
               </div>
               <div className="divide-y divide-gray-50 max-h-[480px] overflow-y-auto">
-                {mappings.map((m) => (
-                  <div key={m.pageIndex} className="px-5 py-2.5 grid grid-cols-2 gap-4 items-center">
-                    <span className="text-sm text-gray-700">{m.pageIndex + 1}페이지</span>
-                    <select
-                      value={m.employeeId}
-                      onChange={e => setEmployeeId(m.pageIndex, e.target.value)}
-                      className={`border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
-                        ${!m.employeeId ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                    >
-                      <option value="">직원 선택</option>
-                      {employees.map(emp => (
-                        <option
-                          key={emp.id}
-                          value={emp.id}
-                          disabled={assignedIds.includes(emp.id) && m.employeeId !== emp.id}
-                        >
-                          {emp.name} {emp.department ? `(${emp.department})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+                {mappings.map((m) => {
+                  const assignedEmployee = employees.find(e => e.id === m.employeeId)
+                  const mismatch = m.detectedName && assignedEmployee && m.detectedName !== assignedEmployee.name
+                  return (
+                    <div key={m.pageIndex} className={`px-5 py-2.5 grid grid-cols-3 gap-4 items-center ${mismatch ? 'bg-red-50' : ''}`}>
+                      <span className="text-sm text-gray-700">{m.pageIndex + 1}페이지</span>
+                      <span className={`text-sm font-medium ${mismatch ? 'text-red-600' : m.detectedName ? 'text-green-600' : 'text-gray-400'}`}>
+                        {m.detectedName ?? '감지 안됨'}
+                        {mismatch && ' ⚠'}
+                      </span>
+                      <select
+                        value={m.employeeId}
+                        onChange={e => setEmployeeId(m.pageIndex, e.target.value)}
+                        className={`border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                          ${mismatch ? 'border-red-400' : !m.employeeId ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                      >
+                        <option value="">직원 선택</option>
+                        {employees.map(emp => (
+                          <option
+                            key={emp.id}
+                            value={emp.id}
+                            disabled={assignedIds.includes(emp.id) && m.employeeId !== emp.id}
+                          >
+                            {emp.name} {emp.department ? `(${emp.department})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })}
               </div>
               {!allMapped && (
                 <div className="px-5 py-2 bg-amber-50 border-t border-amber-100">
