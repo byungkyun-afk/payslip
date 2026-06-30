@@ -1,34 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase'
+import pool from '@/lib/db'
 
-// 직원 목록 조회
 export async function GET() {
-  const supabase = createServiceClient()
-  const { data, error } = await supabase
-    .from('employees')
-    .select('*')
-    .order('name')
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ data })
+  const { rows } = await pool.query('SELECT * FROM employees ORDER BY name')
+  return NextResponse.json({ data: rows })
 }
 
-// 직원 추가
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { name, phone, id_prefix, department, position } = body
+  const { name, phone, id_prefix, department, position } = await request.json()
 
   if (!name || !phone || !id_prefix) {
     return NextResponse.json({ error: '이름, 전화번호, 주민번호 앞6자리는 필수입니다.' }, { status: 400 })
   }
 
-  const supabase = createServiceClient()
-  const { data, error } = await supabase
-    .from('employees')
-    .insert({ name, phone, id_prefix, department, position })
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ data }, { status: 201 })
+  const { rows } = await pool.query(
+    `INSERT INTO employees (name, phone, id_prefix, department, position)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [name, phone, id_prefix, department, position]
+  )
+  return NextResponse.json({ data: rows[0] }, { status: 201 })
 }

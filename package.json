@@ -9,10 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2",
+    "@aws-sdk/client-s3": "^3",
+    "@aws-sdk/s3-request-presigner": "^3",
+    "pg": "^8",
     "pdf-lib": "^1.17.1",
     "unpdf": "^0.11.0",
-    "cloudinary": "^2",
     "coolsms-node-sdk": "^2",
     "next": "16.2.9",
     "react": "19.2.4",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

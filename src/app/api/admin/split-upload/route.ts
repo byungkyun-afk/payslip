@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PDFDocument } from 'pdf-lib'
-import { createServiceClient } from '@/lib/supabase'
-import { uploadPayslipToStorage } from '@/lib/storage'
+import pool from '@/lib/db'
+import { uploadPayslipToS3 } from '@/lib/s3'
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData()
@@ -15,20 +15,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '필수 항목 누락' }, { status: 400 })
   }
 
-  const supabase = createServiceClient()
   const buffer = await file.arrayBuffer()
   const srcPdf = await PDFDocument.load(buffer)
 
-  // 직원 정보 한 번에 조회
   const employeeIds = mappings.map(m => m.employeeId)
-  const { data: employees } = await supabase
-    .from('employees')
-    .select('*')
-    .in('id', employeeIds)
+  const placeholders = employeeIds.map((_, i) => `$${i + 1}`).join(',')
+  const { rows: employees } = await pool.query(
+    `SELECT * FROM employees WHERE id IN (${placeholders})`,
+    employeeIds
+  )
+  const employeeMap = new Map(employees.map((e: { id: string }) => [e.id, e]))
 
-  const employeeMap = new Map(employees?.map(e => [e.id, e]) ?? [])
-
-  // 1단계: PDF 페이지 추출 (순차 - pdf-lib 병렬 충돌 방지)
+  // 1단계: PDF 페이지 순차 추출
   const pageBuffers: { employeeId: string; pdfBytes: Uint8Array }[] = []
   for (const { pageIndex, employeeId } of mappings) {
     const newPdf = await PDFDocument.create()
@@ -38,10 +36,10 @@ export async function POST(request: NextRequest) {
     pageBuffers.push({ employeeId, pdfBytes })
   }
 
-  // 2단계: Supabase Storage 업로드 + DB 저장 (병렬)
+  // 2단계: S3 업로드 + DB 저장 (병렬)
   const results = await Promise.all(
     pageBuffers.map(async ({ employeeId, pdfBytes }) => {
-      const employee = employeeMap.get(employeeId)
+      const employee = employeeMap.get(employeeId) as { id: string; name: string } | undefined
       if (!employee) {
         return { employeeId, employeeName: null, payslipId: null, success: false, error: '직원 없음' }
       }
@@ -50,38 +48,20 @@ export async function POST(request: NextRequest) {
         const monthPadded = String(payMonth).padStart(2, '0')
         const storagePath = `${employeeId}/${payYear}${monthPadded}.pdf`
 
-        await uploadPayslipToStorage(Buffer.from(pdfBytes), storagePath)
+        await uploadPayslipToS3(Buffer.from(pdfBytes), storagePath)
 
-        const { data: payslip, error: dbError } = await supabase
-          .from('payslips')
-          .upsert({
-            employee_id: employeeId,
-            pay_year: payYear,
-            pay_month: payMonth,
-            storage_path: storagePath,
-            // 기존 컬럼 초기화 (Cloudinary 잔재 제거)
-            cloudinary_id: null,
-            pdf_url: null,
-          }, { onConflict: 'employee_id,pay_year,pay_month' })
-          .select()
-          .single()
+        const { rows } = await pool.query(
+          `INSERT INTO payslips (employee_id, pay_year, pay_month, storage_path)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (employee_id, pay_year, pay_month)
+           DO UPDATE SET storage_path=$4, updated_at=now()
+           RETURNING *`,
+          [employeeId, payYear, payMonth, storagePath]
+        )
 
-        if (dbError) {
-          return { employeeId, employeeName: employee.name, payslipId: null, success: false, error: dbError.message }
-        }
-
-        return { employeeId, employeeName: employee.name, payslipId: payslip.id, success: true }
+        return { employeeId, employeeName: employee.name, payslipId: rows[0].id, success: true }
       } catch (e: unknown) {
-        let message = '알 수 없는 오류'
-        if (e instanceof Error) {
-          message = e.message
-        } else if (typeof e === 'object' && e !== null) {
-          const obj = e as Record<string, unknown>
-          const inner = obj.error as Record<string, unknown> | undefined
-          message = (inner?.message as string) ?? JSON.stringify(e)
-        } else {
-          message = String(e)
-        }
+        const message = e instanceof Error ? e.message : String(e)
         return { employeeId, employeeName: employee.name, payslipId: null, success: false, error: message }
       }
     })

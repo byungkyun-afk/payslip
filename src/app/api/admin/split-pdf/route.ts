@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PDFDocument } from 'pdf-lib'
-import { createServiceClient } from '@/lib/supabase'
+import pool from '@/lib/db'
 import { extractText, getDocumentProxy } from 'unpdf'
 
 export async function POST(request: NextRequest) {
@@ -15,14 +15,10 @@ export async function POST(request: NextRequest) {
   const srcPdf = await PDFDocument.load(buffer)
   const pageCount = srcPdf.getPageCount()
 
-  // 직원 목록 조회
-  const supabase = createServiceClient()
-  const { data: employees } = await supabase
-    .from('employees')
-    .select('id, name')
-    .eq('is_active', true)
+  const { rows: employees } = await pool.query(
+    'SELECT id, name FROM employees WHERE is_active=true'
+  )
 
-  // 각 페이지 텍스트 추출 → 직원 이름 매칭
   const suggestions: { pageIndex: number; employeeId: string | null; employeeName: string | null }[] = []
 
   try {
@@ -31,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < pageCount; i++) {
       const text = pageTexts[i] ?? ''
-      const matched = employees?.find(emp => text.includes(emp.name))
+      const matched = employees.find((emp: { name: string }) => text.includes(emp.name))
       suggestions.push({
         pageIndex: i,
         employeeId: matched?.id ?? null,
