@@ -1,14 +1,2 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// 서버 사이드 전용 (Service Role - RLS 우회)
-export function createServiceClient() {
-  return createClient(
-    supabaseUrl,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
+// Supabase → RDS로 마이그레이션 완료. 이 파일은 더 이상 사용하지 않음.
+export {}
