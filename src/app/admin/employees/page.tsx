@@ -16,10 +16,15 @@ export default function EmployeesPage() {
 
   async function fetchEmployees() {
     setLoading(true)
-    const res = await fetch('/api/admin/employees')
-    const { data } = await res.json()
-    setEmployees(data ?? [])
-    setLoading(false)
+    try {
+      const res = await fetch('/api/admin/employees')
+      const { data } = await res.json()
+      setEmployees(data ?? [])
+    } catch (e) {
+      console.error('직원 목록 로드 실패:', e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   function openAdd() {
