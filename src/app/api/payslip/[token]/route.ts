@@ -21,10 +21,6 @@ export async function POST(
     return NextResponse.json({ error: '유효하지 않은 링크입니다.' }, { status: 404 })
   }
 
-  if (new Date(payslip.token_expires_at) < new Date()) {
-    return NextResponse.json({ error: '만료된 링크입니다. 관리자에게 문의해주세요.' }, { status: 410 })
-  }
-
   if (payslip.id_prefix !== id_prefix) {
     return NextResponse.json({ error: '주민번호 앞 6자리가 일치하지 않습니다.' }, { status: 401 })
   }
