@@ -18,7 +18,7 @@ export default function EmployeesPage() {
     setLoading(true)
     const res = await fetch('/api/admin/employees')
     const { data } = await res.json()
-    setEmployees(data?.filter((e: Employee) => e.is_active) ?? [])
+    setEmployees(data ?? [])
     setLoading(false)
   }
 
