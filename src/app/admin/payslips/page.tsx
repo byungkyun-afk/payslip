@@ -148,6 +148,7 @@ export default function PayslipsPage() {
               <span className="ml-3 text-gray-400 font-normal text-xs">
                 알림톡: {filtered.filter(p => p.is_notified).length}명 · 열람: {filtered.filter(p => p.downloaded_at).length}명
               </span>
+              <button onClick={load} className="ml-3 text-xs text-blue-500 hover:underline cursor-pointer">↻ 새로고침</button>
             </span>
             {someChecked && (
               <button
