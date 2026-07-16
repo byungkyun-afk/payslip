@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { LeaveRequest } from '@/types'
+import { LeaveRequest, LeaveType } from '@/types'
 
 const STATUS_LABEL: Record<string, string> = {
   pending: '대기',
@@ -29,23 +29,42 @@ interface StatRow {
   remaining_days: number
 }
 
+interface Employee { id: string; name: string; department?: string }
+
 type TabType = 'requests' | 'stats'
 
 export default function AdminLeavePage() {
   const [tab, setTab] = useState<TabType>('requests')
-  const [requests, setRequests] = useState<(LeaveRequest & { employee_name: string })[]>([])
+  const [requests, setRequests] = useState<(LeaveRequest & { employee_name: string; department?: string })[]>([])
   const [stats, setStats] = useState<StatRow[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
 
+  // 결재 모달
   const [actionTarget, setActionTarget] = useState<(LeaveRequest & { employee_name: string }) | null>(null)
   const [actionType, setActionType] = useState<'approve1' | 'approve2' | 'reject' | null>(null)
   const [comment, setComment] = useState('')
   const [rejectedReason, setRejectedReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
+  // 직접 입력 모달
+  const [showDirect, setShowDirect] = useState(false)
+  const [directForm, setDirectForm] = useState({
+    employee_id: '',
+    leave_type: 'annual' as LeaveType,
+    start_date: '',
+    end_date: '',
+    start_hour: 9,
+    end_hour: 13,
+    reason: '',
+  })
+  const [directLoading, setDirectLoading] = useState(false)
+  const [directError, setDirectError] = useState('')
+
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
   useEffect(() => { fetchData() }, [tab])
+  useEffect(() => { fetchEmployees() }, [])
 
   async function fetchData() {
     setLoading(true)
@@ -61,27 +80,54 @@ export default function AdminLeavePage() {
     setLoading(false)
   }
 
+  async function fetchEmployees() {
+    const res = await fetch('/api/admin/employees')
+    const { data } = await res.json()
+    setEmployees(data ?? [])
+  }
+
   async function handleAction() {
     if (!actionTarget || !actionType) return
     setActionLoading(true)
-
     const level = actionType === 'approve1' ? 1 : 2
     const action = actionType === 'reject' ? 'reject' : 'approve'
-
     const res = await fetch(`/api/admin/leave/${actionTarget.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, level, comment, rejected_reason: rejectedReason }),
     })
-
     if (res.ok) {
-      setActionTarget(null)
-      setActionType(null)
-      setComment('')
-      setRejectedReason('')
+      setActionTarget(null); setActionType(null); setComment(''); setRejectedReason('')
       fetchData()
     }
     setActionLoading(false)
+  }
+
+  async function handleDirectSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setDirectLoading(true)
+    setDirectError('')
+    const body = {
+      ...directForm,
+      end_date: directForm.leave_type === 'annual' ? directForm.end_date : undefined,
+      start_hour: directForm.leave_type === 'hourly' ? directForm.start_hour : undefined,
+      end_hour: directForm.leave_type === 'hourly' ? directForm.end_hour : undefined,
+    }
+    const res = await fetch('/api/admin/leave/direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const json = await res.json()
+    if (res.ok) {
+      setShowDirect(false)
+      setDirectForm({ employee_id: '', leave_type: 'annual', start_date: '', end_date: '', start_hour: 9, end_hour: 13, reason: '' })
+      fetchData()
+      if (tab === 'stats') fetchData()
+    } else {
+      setDirectError(json.error)
+    }
+    setDirectLoading(false)
   }
 
   function formatLeaveDetail(req: LeaveRequest) {
@@ -94,35 +140,43 @@ export default function AdminLeavePage() {
   }
 
   const filtered = statusFilter === 'all' ? requests : requests.filter(r => r.status === statusFilter)
+  const hours = directForm.end_hour - directForm.start_hour
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">연차 관리</h1>
-        <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => setTab('requests')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tab === 'requests' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-            }`}
+            onClick={() => { setShowDirect(true); setDirectError('') }}
+            className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700"
           >
-            신청 목록
+            + 직접 입력
           </button>
-          <button
-            onClick={() => setTab('stats')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tab === 'stats' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            사용현황
-          </button>
+          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+            <button
+              onClick={() => setTab('requests')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                tab === 'requests' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              신청 목록
+            </button>
+            <button
+              onClick={() => setTab('stats')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                tab === 'stats' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              사용현황
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── 신청 목록 탭 ── */}
       {tab === 'requests' && (
         <>
-          {/* 상태 필터 */}
           <div className="flex gap-2 mb-4">
             {[['all', '전체'], ['pending', '대기'], ['level1_approved', '1차 승인'], ['approved', '최종 승인'], ['rejected', '반려']].map(([val, label]) => (
               <button
@@ -153,18 +207,14 @@ export default function AdminLeavePage() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400">신청 내역이 없습니다.</td>
-                    </tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">신청 내역이 없습니다.</td></tr>
                   ) : filtered.map(req => (
                     <tr key={req.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <p className="font-medium">{req.employee_name}</p>
-                        <p className="text-xs text-gray-400">{(req as never as { department?: string }).department}</p>
+                        <p className="text-xs text-gray-400">{req.department}</p>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {req.leave_type === 'annual' ? '연차' : '시간연차'}
-                      </td>
+                      <td className="px-4 py-3 text-gray-600">{req.leave_type === 'annual' ? '연차' : '시간연차'}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatLeaveDetail(req)}</td>
                       <td className="px-4 py-3 text-gray-600">{req.used_days}일</td>
                       <td className="px-4 py-3 text-gray-500 max-w-32 truncate">{req.reason ?? '-'}</td>
@@ -177,34 +227,18 @@ export default function AdminLeavePage() {
                         <div className="flex gap-1">
                           {req.status === 'pending' && (
                             <>
-                              <button
-                                onClick={() => { setActionTarget(req); setActionType('approve1') }}
-                                className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100"
-                              >
-                                1차 승인
-                              </button>
-                              <button
-                                onClick={() => { setActionTarget(req); setActionType('reject') }}
-                                className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100"
-                              >
-                                반려
-                              </button>
+                              <button onClick={() => { setActionTarget(req); setActionType('approve1') }}
+                                className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100">1차 승인</button>
+                              <button onClick={() => { setActionTarget(req); setActionType('reject') }}
+                                className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100">반려</button>
                             </>
                           )}
                           {req.status === 'level1_approved' && (
                             <>
-                              <button
-                                onClick={() => { setActionTarget(req); setActionType('approve2') }}
-                                className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100"
-                              >
-                                최종 승인
-                              </button>
-                              <button
-                                onClick={() => { setActionTarget(req); setActionType('reject') }}
-                                className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100"
-                              >
-                                반려
-                              </button>
+                              <button onClick={() => { setActionTarget(req); setActionType('approve2') }}
+                                className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100">최종 승인</button>
+                              <button onClick={() => { setActionTarget(req); setActionType('reject') }}
+                                className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100">반려</button>
                             </>
                           )}
                           {(req.status === 'approved' || req.status === 'rejected') && (
@@ -237,9 +271,7 @@ export default function AdminLeavePage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {stats.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400">직원 정보가 없습니다.</td>
-                  </tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">직원 정보가 없습니다.</td></tr>
                 ) : stats.map(s => (
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -265,7 +297,7 @@ export default function AdminLeavePage() {
         )
       )}
 
-      {/* 결재 확인 모달 */}
+      {/* ── 결재 확인 모달 ── */}
       {actionTarget && actionType && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
@@ -273,50 +305,146 @@ export default function AdminLeavePage() {
               {actionType === 'approve1' ? '1차 승인' : actionType === 'approve2' ? '최종 승인' : '반려'}
             </h2>
             <p className="text-sm text-gray-500 mb-4">
-              {actionTarget.employee_name}님의 연차 신청 ({formatLeaveDetail(actionTarget)})
+              {actionTarget.employee_name}님 ({formatLeaveDetail(actionTarget)})
             </p>
-
             {actionType === 'reject' ? (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">반려 사유</label>
-                <textarea
-                  value={rejectedReason}
-                  onChange={e => setRejectedReason(e.target.value)}
-                  placeholder="반려 사유를 입력하세요"
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                />
+                <textarea value={rejectedReason} onChange={e => setRejectedReason(e.target.value)}
+                  placeholder="반려 사유를 입력하세요" rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none" />
               </div>
             ) : (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">코멘트 (선택)</label>
-                <textarea
-                  value={comment}
-                  onChange={e => setComment(e.target.value)}
-                  placeholder="코멘트를 입력하세요"
-                  rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
+                <textarea value={comment} onChange={e => setComment(e.target.value)}
+                  placeholder="코멘트를 입력하세요" rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
               </div>
             )}
-
             <div className="flex gap-2">
-              <button
-                onClick={() => { setActionTarget(null); setActionType(null); setComment(''); setRejectedReason('') }}
-                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAction}
-                disabled={actionLoading}
-                className={`flex-1 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${
-                  actionType === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
+              <button onClick={() => { setActionTarget(null); setActionType(null); setComment(''); setRejectedReason('') }}
+                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">취소</button>
+              <button onClick={handleAction} disabled={actionLoading}
+                className={`flex-1 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${actionType === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
                 {actionLoading ? '처리 중...' : '확인'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 직접 입력 모달 ── */}
+      {showDirect && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-lg font-bold mb-4">연차 직접 입력</h2>
+            <form onSubmit={handleDirectSubmit} className="space-y-4">
+
+              {/* 직원 선택 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">직원 *</label>
+                <select
+                  value={directForm.employee_id}
+                  onChange={e => setDirectForm(f => ({ ...f, employee_id: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  required
+                >
+                  <option value="">직원 선택</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name}{emp.department ? ` (${emp.department})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 유형 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">유형</label>
+                <div className="flex gap-3">
+                  {([['annual', '연차 (하루 단위)'], ['hourly', '시간 연차']] as const).map(([val, label]) => (
+                    <button key={val} type="button"
+                      onClick={() => setDirectForm(f => ({ ...f, leave_type: val }))}
+                      className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${
+                        directForm.leave_type === val
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 날짜 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {directForm.leave_type === 'annual' ? '시작일 *' : '날짜 *'}
+                </label>
+                <input type="date" value={directForm.start_date}
+                  onChange={e => setDirectForm(f => ({ ...f, start_date: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  required />
+              </div>
+
+              {directForm.leave_type === 'annual' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">종료일 *</label>
+                  <input type="date" value={directForm.end_date} min={directForm.start_date}
+                    onChange={e => setDirectForm(f => ({ ...f, end_date: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    required />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">시작 시각 *</label>
+                      <select value={directForm.start_hour}
+                        onChange={e => setDirectForm(f => ({ ...f, start_hour: Number(e.target.value) }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        {Array.from({ length: 9 }, (_, i) => i + 9).map(h => (
+                          <option key={h} value={h}>{h}:00</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">종료 시각 *</label>
+                      <select value={directForm.end_hour}
+                        onChange={e => setDirectForm(f => ({ ...f, end_hour: Number(e.target.value) }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        {Array.from({ length: 9 }, (_, i) => i + 10).map(h => (
+                          <option key={h} value={h}>{h}:00</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    사용량: {Math.max(0, hours)}시간 = {(Math.max(0, hours) / 8).toFixed(2)}일
+                  </p>
+                </>
+              )}
+
+              {/* 사유 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">사유</label>
+                <textarea value={directForm.reason}
+                  onChange={e => setDirectForm(f => ({ ...f, reason: e.target.value }))}
+                  placeholder="선택 사항" rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 resize-none" />
+              </div>
+
+              {directError && <p className="text-sm text-red-600">{directError}</p>}
+
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setShowDirect(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">취소</button>
+                <button type="submit" disabled={directLoading}
+                  className="flex-1 bg-gray-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-50">
+                  {directLoading ? '저장 중...' : '저장'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
