@@ -4,7 +4,7 @@
  * - 1년 미만: 1개월 개근 시 1일 발생 (최대 11일)
  * - 1년 이상: 15일 기본, 2년마다 1일 추가, 최대 25일
  *
- * 계산 기준: 해당 연도 내 도래하는 입사 기념일의 근속연수
+ * 계산 기준: 오늘 날짜 기준으로 입사 기념일(월,일 포함) 완성 여부 판단
  */
 
 export function calculateAnnualLeave(hireDateStr: string, targetYear: number): number {
@@ -12,16 +12,23 @@ export function calculateAnnualLeave(hireDateStr: string, targetYear: number): n
   hireDate.setHours(0, 0, 0, 0)
 
   const hireYear = hireDate.getFullYear()
-
-  // 해당 연도에 아직 입사 전이면 0
   if (hireYear > targetYear) return 0
 
-  // 해당 연도의 입사 기념일 기준 근속연수
-  const yearsOfService = targetYear - hireYear
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-  if (yearsOfService === 0) {
-    // 입사 첫 해: 월 1일씩 (최대 11일)
-    const today = new Date()
+  // 해당 연도의 입사 기념일 (월, 일 포함)
+  const anniversaryThisYear = new Date(targetYear, hireDate.getMonth(), hireDate.getDate())
+
+  // 오늘 기준으로 기념일이 지났는지 확인
+  const anniversaryPassed = today >= anniversaryThisYear
+
+  // 완성된 근속연수
+  let yearsOfService = targetYear - hireYear
+  if (!anniversaryPassed) yearsOfService--
+
+  if (yearsOfService <= 0) {
+    // 1년 미만: 완성된 개월 수만큼 (최대 11일)
     const endOfTargetYear = new Date(targetYear + 1, 0, 1)
     const calcTo = today < endOfTargetYear ? today : endOfTargetYear
     return Math.min(monthsBetween(hireDate, calcTo), 11)
