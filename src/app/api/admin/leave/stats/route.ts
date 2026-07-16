@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { calculateAnnualLeave } from '@/lib/leaveCalculator'
 
-// GET /api/admin/leave/stats - 직원별 연차 사용현황
-export async function GET() {
-  const year = new Date().getFullYear()
+// GET /api/admin/leave/stats?year=2026
+export async function GET(request: NextRequest) {
+  const year = Number(request.nextUrl.searchParams.get('year') ?? new Date().getFullYear())
 
   const { rows: employees } = await pool.query(
     `SELECT id, name, department, position, hire_date
@@ -22,11 +22,11 @@ export async function GET() {
     [year]
   )
 
-  const usageMap = new Map(usage.map(u => [u.employee_id, u]))
+  const usageMap = new Map(usage.map(u => [String(u.employee_id), u]))
 
   const stats = employees.map(emp => {
     const total_days = emp.hire_date ? calculateAnnualLeave(emp.hire_date, year) : 0
-    const u = usageMap.get(emp.id)
+    const u = usageMap.get(String(emp.id))
     const used_days = u ? Number(u.used_days) : 0
     const pending_days = u ? Number(u.pending_days) : 0
     return {

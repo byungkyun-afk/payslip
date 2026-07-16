@@ -38,6 +38,8 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
   const [balance, setBalance] = useState<LeaveBalance | null>(null)
   const [requests, setRequests] = useState<LeaveRequest[]>([])
   const [dataLoading, setDataLoading] = useState(false)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const YEARS = [new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2]
 
   // 신청 폼
   const [showForm, setShowForm] = useState(false)
@@ -69,10 +71,11 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
     setAuthLoading(false)
   }
 
-  async function fetchLeaveData() {
+  async function fetchLeaveData(year?: number) {
     if (!employee) return
     setDataLoading(true)
-    const res = await fetch(`/api/employee/${token}/leave`)
+    const y = year ?? selectedYear
+    const res = await fetch(`/api/employee/${token}/leave?year=${y}`)
     const json = await res.json()
     if (res.ok) {
       setBalance(json.balance)
@@ -83,7 +86,7 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
 
   useEffect(() => {
     if (employee) fetchLeaveData()
-  }, [employee])
+  }, [employee, selectedYear])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -183,15 +186,24 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
                 {employee.name}님의 연차 현황
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
-                {employee.department} {employee.position && `· ${employee.position}`} · {year}년
+                {employee.department} {employee.position && `· ${employee.position}`}
               </p>
             </div>
-            <button
-              onClick={() => { setShowForm(true); setSubmitError(''); setSubmitSuccess(false) }}
-              className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
-            >
-              연차 신청
-            </button>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedYear}
+                onChange={e => setSelectedYear(Number(e.target.value))}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                {YEARS.map(y => <option key={y} value={y}>{y}년</option>)}
+              </select>
+              <button
+                onClick={() => { setShowForm(true); setSubmitError(''); setSubmitSuccess(false) }}
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+              >
+                연차 신청
+              </button>
+            </div>
           </div>
         </div>
 

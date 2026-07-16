@@ -11,16 +11,16 @@ async function getEmployeeByToken(token: string) {
   return rows[0] ?? null
 }
 
-// GET /api/employee/[token]/leave - 연차 현황 조회
+// GET /api/employee/[token]/leave?year=2026 - 연차 현황 조회
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params
   const emp = await getEmployeeByToken(token)
   if (!emp) return NextResponse.json({ error: '유효하지 않은 링크입니다.' }, { status: 404 })
 
-  const year = new Date().getFullYear()
+  const year = Number(req.nextUrl.searchParams.get('year') ?? new Date().getFullYear())
 
   // 총 연차
   const total_days = emp.hire_date ? calculateAnnualLeave(emp.hire_date, year) : 0
@@ -37,17 +37,17 @@ export async function GET(
   )
   const { used_days, pending_days } = summary[0]
 
-  // 신청 목록 (최근 20건)
+  // 신청 목록 (해당 연도 전체)
   const { rows: requests } = await pool.query(
     `SELECT lr.*,
        json_agg(la ORDER BY la.created_at) FILTER (WHERE la.id IS NOT NULL) AS approvals
      FROM leave_requests lr
      LEFT JOIN leave_approvals la ON la.request_id = lr.id
      WHERE lr.employee_id = $1
+       AND EXTRACT(YEAR FROM lr.start_date) = $2
      GROUP BY lr.id
-     ORDER BY lr.created_at DESC
-     LIMIT 20`,
-    [emp.id]
+     ORDER BY lr.start_date DESC`,
+    [emp.id, year]
   )
 
   return NextResponse.json({

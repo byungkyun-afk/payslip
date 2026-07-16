@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
-import { calculateAnnualLeave } from '@/lib/leaveCalculator'
 
-// GET /api/admin/leave - 전체 연차 신청 목록
-export async function GET() {
+// GET /api/admin/leave?year=2026
+export async function GET(request: NextRequest) {
+  const year = request.nextUrl.searchParams.get('year') ?? new Date().getFullYear().toString()
+
   const { rows } = await pool.query(
     `SELECT
        lr.*,
@@ -14,9 +15,10 @@ export async function GET() {
      FROM leave_requests lr
      JOIN employees e ON lr.employee_id = e.id
      LEFT JOIN leave_approvals la ON la.request_id = lr.id
+     WHERE EXTRACT(YEAR FROM lr.start_date) = $1
      GROUP BY lr.id, e.name, e.department, e.position
-     ORDER BY lr.created_at DESC
-     LIMIT 100`
+     ORDER BY lr.start_date DESC`,
+    [year]
   )
   return NextResponse.json({ data: rows })
 }
