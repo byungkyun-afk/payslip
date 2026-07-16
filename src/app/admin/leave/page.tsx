@@ -76,7 +76,7 @@ const START_HOURS = [
   13, 13.5, 14, 14.5, 15, 15.5, 16, 16.5, 17, 17.5
 ]
 // 사용시간 옵션 (30분 단위, 최대 8시간)
-const DURATIONS = Array.from({ length: 16 }, (_, i) => (i + 1) * 0.5)
+const END_HOURS = [9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15, 15.5, 16, 16.5, 17, 17.5, 18]
 
 export default function AdminLeavePage() {
   const [tab, setTab] = useState<TabType>('requests')
@@ -103,7 +103,7 @@ export default function AdminLeavePage() {
   const [showDirect, setShowDirect] = useState(false)
   const [directForm, setDirectForm] = useState({
     employee_id: '', leave_type: 'annual' as LeaveType,
-    start_date: '', end_date: '', start_hour: 9, duration: 1, reason: '',
+    start_date: '', end_date: '', start_hour: 9, end_hour: 10, reason: '',
   })
   const [directLoading, setDirectLoading] = useState(false)
   const [directError, setDirectError] = useState('')
@@ -112,7 +112,7 @@ export default function AdminLeavePage() {
   const [editTarget, setEditTarget] = useState<LeaveRequest | null>(null)
   const [editForm, setEditForm] = useState({
     leave_type: 'annual' as LeaveType,
-    start_date: '', end_date: '', start_hour: 9, duration: 1, reason: '',
+    start_date: '', end_date: '', start_hour: 9, end_hour: 10, reason: '',
   })
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState('')
@@ -184,7 +184,7 @@ export default function AdminLeavePage() {
       ...directForm,
       end_date: directForm.leave_type === 'annual' ? directForm.end_date : undefined,
       start_hour: directForm.leave_type === 'hourly' ? directForm.start_hour : undefined,
-      end_hour: directForm.leave_type === 'hourly' ? computeEndHour(directForm.start_hour, directForm.duration) : undefined,
+      end_hour: directForm.leave_type === 'hourly' ? directForm.end_hour : undefined,
     }
     const res = await fetch('/api/admin/leave/direct', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -193,7 +193,7 @@ export default function AdminLeavePage() {
     const json = await res.json()
     if (res.ok) {
       setShowDirect(false)
-      setDirectForm({ employee_id: '', leave_type: 'annual', start_date: '', end_date: '', start_hour: 9, duration: 1, reason: '' })
+      setDirectForm({ employee_id: '', leave_type: 'annual', start_date: '', end_date: '', start_hour: 9, end_hour: 10, reason: '' })
       fetchData()
     } else {
       setDirectError(json.error)
@@ -208,7 +208,7 @@ export default function AdminLeavePage() {
       start_date: req.start_date ? req.start_date.slice(0, 10) : '',
       end_date: req.end_date ? req.end_date.slice(0, 10) : '',
       start_hour: Number(req.start_hour ?? 9),
-      duration: Math.max(0.5, Number(req.end_hour ?? 10) - Number(req.start_hour ?? 9) - (Number(req.start_hour ?? 9) < 13 && Number(req.end_hour ?? 10) > 12 ? 1 : 0)),
+      end_hour: Number(req.end_hour ?? 10),
       reason: req.reason ?? '',
     })
     setEditError('')
@@ -222,7 +222,7 @@ export default function AdminLeavePage() {
       ...editForm,
       end_date: editForm.leave_type === 'annual' ? editForm.end_date : undefined,
       start_hour: editForm.leave_type === 'hourly' ? editForm.start_hour : undefined,
-      end_hour: editForm.leave_type === 'hourly' ? computeEndHour(editForm.start_hour, editForm.duration) : undefined,
+      end_hour: editForm.leave_type === 'hourly' ? editForm.end_hour : undefined,
     }
     const res = await fetch(`/api/admin/leave/${editTarget.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -259,8 +259,7 @@ export default function AdminLeavePage() {
   }
 
   const filtered = statusFilter === 'all' ? requests : requests.filter(r => r.status === statusFilter)
-  const directEndHour = computeEndHour(directForm.start_hour, directForm.duration)
-  const hours = calcActualHours(directForm.start_hour, directEndHour)
+  const hours = calcActualHours(directForm.start_hour, directForm.end_hour)
 
   return (
     <div>
@@ -547,18 +546,18 @@ export default function AdminLeavePage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">사용 시간 *</label>
-                      <select value={editForm.duration}
-                        onChange={e => setEditForm(f => ({ ...f, duration: Number(e.target.value) }))}
+                      <label className="block text-sm font-medium text-gray-700 mb-1">종료 시각 *</label>
+                      <select value={editForm.end_hour}
+                        onChange={e => setEditForm(f => ({ ...f, end_hour: Number(e.target.value) }))}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
-                        {DURATIONS.map(d => <option key={d} value={d}>{d % 1 === 0 ? `${d}시간` : `${Math.floor(d)}시간 30분`}</option>)}
+                        {END_HOURS.filter(h => h > editForm.start_hour).map(h => <option key={h} value={h}>{formatHour(h)}</option>)}
                       </select>
                     </div>
                   </div>
                   <p className="text-xs text-gray-400">
-                    종료: {formatHour(computeEndHour(editForm.start_hour, editForm.duration))} ·
-                    실사용: {calcActualHours(editForm.start_hour, computeEndHour(editForm.start_hour, editForm.duration))}시간 =
-                    {(hoursTodays(calcActualHours(editForm.start_hour, computeEndHour(editForm.start_hour, editForm.duration)))).toFixed(2)}일
+                    실사용: {calcActualHours(editForm.start_hour, editForm.end_hour)}시간 =
+                    {hoursTodays(calcActualHours(editForm.start_hour, editForm.end_hour)).toFixed(2)}일
+                    {editForm.start_hour < 13 && editForm.end_hour > 12 && ' (점심 제외)'}
                   </p>
                 </>
               )}
@@ -634,16 +633,17 @@ export default function AdminLeavePage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">사용 시간 *</label>
-                      <select value={directForm.duration}
-                        onChange={e => setDirectForm(f => ({ ...f, duration: Number(e.target.value) }))}
+                      <label className="block text-sm font-medium text-gray-700 mb-1">종료 시각 *</label>
+                      <select value={directForm.end_hour}
+                        onChange={e => setDirectForm(f => ({ ...f, end_hour: Number(e.target.value) }))}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
-                        {DURATIONS.map(d => <option key={d} value={d}>{d % 1 === 0 ? `${d}시간` : `${Math.floor(d)}시간 30분`}</option>)}
+                        {END_HOURS.filter(h => h > directForm.start_hour).map(h => <option key={h} value={h}>{formatHour(h)}</option>)}
                       </select>
                     </div>
                   </div>
                   <p className="text-xs text-gray-400">
-                    종료: {formatHour(directEndHour)} · 실사용: {hours}시간 = {(hours / 8).toFixed(2)}일
+                    실사용: {hours}시간 = {(hours / 8).toFixed(2)}일
+                    {directForm.start_hour < 13 && directForm.end_hour > 12 && ' (점심 제외)'}
                   </p>
                 </>
               )}
