@@ -77,3 +77,22 @@ export function calcActualHours(startHour: number, endHour: number): number {
 export function hoursTodays(hours: number): number {
   return Math.round((hours / 8) * 100) / 100
 }
+
+/**
+ * 숫자 시간을 "H:MM" 형식으로 변환 (9.5 → "9:30")
+ */
+export function formatHour(h: number): string {
+  const hour = Math.floor(h)
+  const min = (h % 1 >= 0.5) ? '30' : '00'
+  return `${hour}:${min}`
+}
+
+/**
+ * 시작시간 + 실사용시간(점심 제외) → 종료시간 계산
+ * 점심(12-13)을 걸치는 경우 1시간 추가
+ */
+export function computeEndHour(start: number, netDuration: number): number {
+  if (start >= 13) return start + netDuration
+  if (start + netDuration <= 12) return start + netDuration
+  return start + netDuration + 1
+}

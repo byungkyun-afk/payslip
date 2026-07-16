@@ -2,6 +2,7 @@
 
 import { useState, use, useEffect } from 'react'
 import { LeaveRequest, LeaveBalance, LeaveType } from '@/types'
+import { formatHour, computeEndHour, calcActualHours, hoursTodays } from '@/lib/leaveCalculator'
 
 const STATUS_LABEL: Record<string, string> = {
   pending: '결재 대기',
@@ -25,6 +26,9 @@ interface EmployeeInfo {
   hire_date?: string
 }
 
+const START_HOURS = [9, 9.5, 10, 10.5, 11, 11.5, 13, 13.5, 14, 14.5, 15, 15.5, 16, 16.5, 17, 17.5]
+const DURATIONS = Array.from({ length: 16 }, (_, i) => (i + 1) * 0.5)
+
 export default function LeavePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
 
@@ -47,7 +51,7 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [startHour, setStartHour] = useState(9)
-  const [endHour, setEndHour] = useState(13)
+  const [duration, setDuration] = useState(1)
   const [reason, setReason] = useState('')
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -99,7 +103,7 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
       body.end_date = endDate
     } else {
       body.start_hour = startHour
-      body.end_hour = endHour
+      body.end_hour = computeEndHour(startHour, duration)
     }
 
     const res = await fetch(`/api/employee/${token}/leave`, {
@@ -131,7 +135,7 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
       const e = req.end_date ? formatDate(req.end_date) : s
       return s === e ? s : `${s} ~ ${e}`
     } else {
-      return `${formatDate(req.start_date)} ${req.start_hour}:00 ~ ${req.end_hour}:00`
+      return `${formatDate(req.start_date)} ${formatHour(Number(req.start_hour))} ~ ${formatHour(Number(req.end_hour))}`
     }
   }
 
@@ -341,28 +345,24 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
                         onChange={e => setStartHour(Number(e.target.value))}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        {Array.from({ length: 9 }, (_, i) => i + 9).map(h => (
-                          <option key={h} value={h}>{h}:00</option>
-                        ))}
+                        {START_HOURS.map(h => <option key={h} value={h}>{formatHour(h)}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">종료 시각 *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">사용 시간 *</label>
                       <select
-                        value={endHour}
-                        onChange={e => setEndHour(Number(e.target.value))}
+                        value={duration}
+                        onChange={e => setDuration(Number(e.target.value))}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        {Array.from({ length: 9 }, (_, i) => i + 10).map(h => (
-                          <option key={h} value={h}>{h}:00</option>
-                        ))}
+                        {DURATIONS.map(d => <option key={d} value={d}>{d % 1 === 0 ? `${d}시간` : `${Math.floor(d)}시간 30분`}</option>)}
                       </select>
                     </div>
                   </div>
                   <p className="text-xs text-gray-400">
-                    사용량: {Math.max(0, endHour - startHour - (startHour < 13 && endHour > 12 ? 1 : 0))}시간
-                    ({(Math.max(0, endHour - startHour - (startHour < 13 && endHour > 12 ? 1 : 0)) / 8).toFixed(2)}일)
-                    {startHour < 13 && endHour > 12 && <span className="text-gray-400 ml-1">(점심시간 제외)</span>}
+                    종료: {formatHour(computeEndHour(startHour, duration))} ·
+                    실사용: {calcActualHours(startHour, computeEndHour(startHour, duration))}시간
+                    ({hoursTodays(calcActualHours(startHour, computeEndHour(startHour, duration))).toFixed(2)}일)
                   </p>
                 </>
               )}
