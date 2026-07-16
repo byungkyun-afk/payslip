@@ -98,6 +98,15 @@ export default function AdminLeavePage() {
   const [directLoading, setDirectLoading] = useState(false)
   const [directError, setDirectError] = useState('')
 
+  // 수정 모달
+  const [editTarget, setEditTarget] = useState<LeaveRequest | null>(null)
+  const [editForm, setEditForm] = useState({
+    leave_type: 'annual' as LeaveType,
+    start_date: '', end_date: '', start_hour: 9, end_hour: 13, reason: '',
+  })
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState('')
+
   const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => { fetchData() }, [tab, year])
@@ -180,6 +189,51 @@ export default function AdminLeavePage() {
       setDirectError(json.error)
     }
     setDirectLoading(false)
+  }
+
+  function openEdit(req: LeaveRequest) {
+    setEditTarget(req)
+    setEditForm({
+      leave_type: req.leave_type,
+      start_date: req.start_date ? req.start_date.slice(0, 10) : '',
+      end_date: req.end_date ? req.end_date.slice(0, 10) : '',
+      start_hour: req.start_hour ?? 9,
+      end_hour: req.end_hour ?? 13,
+      reason: req.reason ?? '',
+    })
+    setEditError('')
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editTarget) return
+    setEditLoading(true); setEditError('')
+    const body = {
+      ...editForm,
+      end_date: editForm.leave_type === 'annual' ? editForm.end_date : undefined,
+      start_hour: editForm.leave_type === 'hourly' ? editForm.start_hour : undefined,
+      end_hour: editForm.leave_type === 'hourly' ? editForm.end_hour : undefined,
+    }
+    const res = await fetch(`/api/admin/leave/${editTarget.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const json = await res.json()
+    if (res.ok) {
+      setEditTarget(null)
+      fetchData()
+      if (detailEmployee) refreshDetail(detailEmployee.id, detailYear)
+    } else {
+      setEditError(json.error)
+    }
+    setEditLoading(false)
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('이 연차 내역을 삭제하시겠습니까?')) return
+    await fetch(`/api/admin/leave/${id}`, { method: 'DELETE' })
+    fetchData()
+    if (detailEmployee) refreshDetail(detailEmployee.id, detailYear)
   }
 
   function fmt(dateStr: string) {
@@ -282,6 +336,10 @@ export default function AdminLeavePage() {
                           {(req.status === 'approved' || req.status === 'rejected') && (
                             <span className="text-xs text-gray-300">처리 완료</span>
                           )}
+                          <button onClick={() => openEdit(req)}
+                            className="text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">수정</button>
+                          <button onClick={() => handleDelete(String(req.id))}
+                            className="text-xs bg-red-50 text-red-500 px-2 py-1 rounded hover:bg-red-100">삭제</button>
                         </div>
                       </td>
                     </tr>
@@ -376,6 +434,14 @@ export default function AdminLeavePage() {
                             {STATUS_LABEL[req.status]}
                           </span>
                         </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1">
+                            <button onClick={() => { setDetailEmployee(null); openEdit(req) }}
+                              className="text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">수정</button>
+                            <button onClick={() => handleDelete(String(req.id))}
+                              className="text-xs bg-red-50 text-red-500 px-2 py-1 rounded hover:bg-red-100">삭제</button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -427,6 +493,76 @@ export default function AdminLeavePage() {
                 {actionLoading ? '처리 중...' : '확인'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수정 모달 */}
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-lg font-bold mb-4">연차 내역 수정</h2>
+            <form onSubmit={handleEdit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">유형</label>
+                <div className="flex gap-3">
+                  {([['annual','연차 (하루 단위)'],['hourly','시간 연차']] as const).map(([val,label]) => (
+                    <button key={val} type="button" onClick={() => setEditForm(f => ({ ...f, leave_type: val }))}
+                      className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${
+                        editForm.leave_type === val ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}>{label}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {editForm.leave_type === 'annual' ? '시작일 *' : '날짜 *'}
+                </label>
+                <DateSelects value={editForm.start_date} onChange={v => setEditForm(f => ({ ...f, start_date: v }))} />
+              </div>
+              {editForm.leave_type === 'annual' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">종료일 *</label>
+                  <DateSelects value={editForm.end_date} min={editForm.start_date}
+                    onChange={v => setEditForm(f => ({ ...f, end_date: v }))} />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">시작 시각 *</label>
+                      <select value={editForm.start_hour}
+                        onChange={e => setEditForm(f => ({ ...f, start_hour: Number(e.target.value) }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
+                        {Array.from({ length: 9 }, (_, i) => i + 9).map(h => <option key={h} value={h}>{h}:00</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">종료 시각 *</label>
+                      <select value={editForm.end_hour}
+                        onChange={e => setEditForm(f => ({ ...f, end_hour: Number(e.target.value) }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
+                        {Array.from({ length: 9 }, (_, i) => i + 10).map(h => <option key={h} value={h}>{h}:00</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">사유</label>
+                <textarea value={editForm.reason} onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))}
+                  rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gray-500" />
+              </div>
+              {editError && <p className="text-sm text-red-600">{editError}</p>}
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setEditTarget(null)}
+                  className="flex-1 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50">취소</button>
+                <button type="submit" disabled={editLoading}
+                  className="flex-1 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
+                  {editLoading ? '저장 중...' : '저장'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
