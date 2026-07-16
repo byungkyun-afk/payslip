@@ -25,6 +25,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/admin/payslips" className="text-sm text-gray-600 hover:text-gray-900">
               발송 현황
             </Link>
+            <Link href="/admin/leave" className="text-sm text-gray-600 hover:text-gray-900">
+              연차 관리
+            </Link>
           </div>
           <LogoutButton />
         </div>

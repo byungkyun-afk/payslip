@@ -6,12 +6,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { name, phone, id_prefix, department, position } = await request.json()
+  const { name, phone, id_prefix, department, position, hire_date, is_approver } = await request.json()
 
   const { rows } = await pool.query(
-    `UPDATE employees SET name=$1, phone=$2, id_prefix=$3, department=$4, position=$5
-     WHERE id=$6 RETURNING *`,
-    [name, phone, id_prefix, department, position, id]
+    `UPDATE employees SET name=$1, phone=$2, id_prefix=$3, department=$4, position=$5,
+       hire_date=$6, is_approver=$7
+     WHERE id=$8 RETURNING *`,
+    [name, phone, id_prefix, department, position, hire_date || null, is_approver ?? false, id]
   )
   return NextResponse.json({ data: rows[0] })
 }

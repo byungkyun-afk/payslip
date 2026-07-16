@@ -8,7 +8,7 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editTarget, setEditTarget] = useState<Employee | null>(null)
-  const [form, setForm] = useState({ name: '', phone: '', id_prefix: '', department: '', position: '' })
+  const [form, setForm] = useState({ name: '', phone: '', id_prefix: '', department: '', position: '', hire_date: '', is_approver: false })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -29,16 +29,31 @@ export default function EmployeesPage() {
 
   function openAdd() {
     setEditTarget(null)
-    setForm({ name: '', phone: '', id_prefix: '', department: '', position: '' })
+    setForm({ name: '', phone: '', id_prefix: '', department: '', position: '', hire_date: '', is_approver: false })
     setShowForm(true)
     setError('')
   }
 
   function openEdit(emp: Employee) {
     setEditTarget(emp)
-    setForm({ name: emp.name, phone: emp.phone, id_prefix: emp.id_prefix, department: emp.department ?? '', position: emp.position ?? '' })
+    setForm({
+      name: emp.name,
+      phone: emp.phone,
+      id_prefix: emp.id_prefix,
+      department: emp.department ?? '',
+      position: emp.position ?? '',
+      hire_date: emp.hire_date ? emp.hire_date.slice(0, 10) : '',
+      is_approver: emp.is_approver ?? false,
+    })
     setShowForm(true)
     setError('')
+  }
+
+  function copyLeaveUrl(emp: Employee) {
+    if (!emp.employee_token) return
+    const url = `${window.location.origin}/leave/${emp.employee_token}`
+    navigator.clipboard.writeText(url)
+    alert(`${emp.name}님의 연차 URL이 복사되었습니다.`)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -88,7 +103,7 @@ export default function EmployeesPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['이름', '전화번호', '부서', '직급', ''].map(h => (
+                {['이름', '전화번호', '부서', '직급', '입사일', ''].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-medium text-gray-600">{h}</th>
                 ))}
               </tr>
@@ -102,8 +117,14 @@ export default function EmployeesPage() {
                   <td className="px-4 py-3 text-gray-600">{emp.phone}</td>
                   <td className="px-4 py-3 text-gray-600">{emp.department ?? '-'}</td>
                   <td className="px-4 py-3 text-gray-600">{emp.position ?? '-'}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {emp.hire_date ? new Date(emp.hire_date).toLocaleDateString('ko-KR') : '-'}
+                    {emp.is_approver && <span className="ml-1 text-xs text-purple-600 font-medium">[팀장]</span>}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2 justify-end">
+                      <button onClick={() => copyLeaveUrl(emp)}
+                        className="text-emerald-600 hover:underline text-xs cursor-pointer">연차URL</button>
                       <button onClick={() => openEdit(emp)}
                         className="text-blue-600 hover:underline text-xs cursor-pointer">수정</button>
                       <button onClick={() => handleDelete(emp.id, emp.name)}
@@ -133,7 +154,7 @@ export default function EmployeesPage() {
                 <div key={key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
                   <input
-                    value={form[key as keyof typeof form]}
+                    value={form[key as keyof typeof form] as string}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     placeholder={placeholder}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -141,6 +162,24 @@ export default function EmployeesPage() {
                   />
                 </div>
               ))}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">입사일</label>
+                <input
+                  type="date"
+                  value={form.hire_date}
+                  onChange={e => setForm(f => ({ ...f, hire_date: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_approver}
+                  onChange={e => setForm(f => ({ ...f, is_approver: e.target.checked }))}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <span className="text-sm text-gray-700">팀장 (1차 결재자)</span>
+              </label>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setShowForm(false)}
