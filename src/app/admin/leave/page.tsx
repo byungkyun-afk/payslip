@@ -195,7 +195,9 @@ export default function AdminLeavePage() {
   }
 
   const filtered = statusFilter === 'all' ? requests : requests.filter(r => r.status === statusFilter)
-  const hours = directForm.end_hour - directForm.start_hour
+  const rawHours = directForm.end_hour - directForm.start_hour
+  const lunchDeduct = directForm.start_hour < 13 && directForm.end_hour > 12 ? 1 : 0
+  const hours = Math.max(0, rawHours - lunchDeduct)
 
   return (
     <div>
@@ -490,7 +492,10 @@ export default function AdminLeavePage() {
                       </select>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400">사용량: {Math.max(0, hours)}시간 = {(Math.max(0, hours) / 8).toFixed(2)}일</p>
+                  <p className="text-xs text-gray-400">
+                    사용량: {hours}시간 = {(hours / 8).toFixed(2)}일
+                    {lunchDeduct > 0 && <span className="ml-1">(점심시간 제외)</span>}
+                  </p>
                 </>
               )}
               <div>

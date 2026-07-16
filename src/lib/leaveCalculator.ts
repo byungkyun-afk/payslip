@@ -63,6 +63,15 @@ export function countWorkdays(startStr: string, endStr: string): number {
 }
 
 /**
+ * 실제 연차 사용 시간 계산 (점심시간 12:00~13:00 제외)
+ */
+export function calcActualHours(startHour: number, endHour: number): number {
+  const raw = endHour - startHour
+  const lunchOverlap = startHour < 13 && endHour > 12 ? 1 : 0
+  return Math.max(0, raw - lunchOverlap)
+}
+
+/**
  * 시간 단위 연차를 일 단위로 환산 (8시간 = 1일)
  */
 export function hoursTodays(hours: number): number {

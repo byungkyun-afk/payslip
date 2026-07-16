@@ -360,7 +360,9 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
                     </div>
                   </div>
                   <p className="text-xs text-gray-400">
-                    사용량: {Math.max(0, endHour - startHour)}시간 ({(Math.max(0, endHour - startHour) / 8).toFixed(2)}일)
+                    사용량: {Math.max(0, endHour - startHour - (startHour < 13 && endHour > 12 ? 1 : 0))}시간
+                    ({(Math.max(0, endHour - startHour - (startHour < 13 && endHour > 12 ? 1 : 0)) / 8).toFixed(2)}일)
+                    {startHour < 13 && endHour > 12 && <span className="text-gray-400 ml-1">(점심시간 제외)</span>}
                   </p>
                 </>
               )}

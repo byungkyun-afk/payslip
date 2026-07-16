@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
-import { countWorkdays, hoursTodays } from '@/lib/leaveCalculator'
+import { countWorkdays, hoursTodays, calcActualHours } from '@/lib/leaveCalculator'
 
 // POST /api/admin/leave/direct - 관리자 직접 연차 입력 (즉시 approved)
 export async function POST(request: NextRequest) {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     if (start_hour == null || end_hour == null) {
       return NextResponse.json({ error: '시작/종료 시각이 필요합니다.' }, { status: 400 })
     }
-    const hours = end_hour - start_hour
+    const hours = calcActualHours(start_hour, end_hour)
     if (hours <= 0) return NextResponse.json({ error: '종료 시각이 시작 시각보다 늦어야 합니다.' }, { status: 400 })
     used_days = hoursTodays(hours)
   }
