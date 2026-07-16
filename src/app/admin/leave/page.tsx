@@ -518,7 +518,7 @@ export default function AdminLeavePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {editForm.leave_type === 'annual' ? '시작일 *' : '날짜 *'}
                 </label>
-                <DateSelects value={editForm.start_date} onChange={v => setEditForm(f => ({ ...f, start_date: v }))} />
+                <DateSelects value={editForm.start_date} onChange={v => setEditForm(f => ({ ...f, start_date: v, end_date: v }))} />
               </div>
               {editForm.leave_type === 'annual' ? (
                 <div>
@@ -600,7 +600,7 @@ export default function AdminLeavePage() {
                   {directForm.leave_type === 'annual' ? '시작일 *' : '날짜 *'}
                 </label>
                 <DateSelects value={directForm.start_date}
-                  onChange={v => setDirectForm(f => ({ ...f, start_date: v }))} />
+                  onChange={v => setDirectForm(f => ({ ...f, start_date: v, end_date: v }))} />
               </div>
               {directForm.leave_type === 'annual' ? (
                 <div>
