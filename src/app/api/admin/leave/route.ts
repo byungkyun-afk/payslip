@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
      LEFT JOIN leave_approvals la ON la.request_id = lr.id
      WHERE EXTRACT(YEAR FROM lr.start_date) = $1
      GROUP BY lr.id, e.name, e.department, e.position
-     ORDER BY lr.start_date DESC`,
+      ORDER BY lr.start_date DESC`,
     [year]
   )
   return NextResponse.json({ data: rows })

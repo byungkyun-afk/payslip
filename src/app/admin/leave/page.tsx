@@ -31,6 +31,42 @@ type TabType = 'requests' | 'stats'
 
 const YEAR = new Date().getFullYear()
 const YEARS = [YEAR, YEAR - 1, YEAR - 2]
+const D_YEARS = [YEAR, YEAR - 1, YEAR - 2, YEAR - 3]
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
+function daysInMonth(y: number, m: number) { return new Date(y, m, 0).getDate() }
+
+function DateSelects({ value, onChange, min }: {
+  value: string
+  onChange: (v: string) => void
+  min?: string
+}) {
+  const [y, m, d] = value ? value.split('-').map(Number) : [YEAR, 1, 1]
+  const days = Array.from({ length: daysInMonth(y || YEAR, m || 1) }, (_, i) => i + 1)
+  function set(ny: number, nm: number, nd: number) {
+    const maxD = daysInMonth(ny, nm)
+    const safeD = Math.min(nd, maxD)
+    onChange(`${ny}-${String(nm).padStart(2,'0')}-${String(safeD).padStart(2,'0')}`)
+  }
+  return (
+    <div className="flex gap-2">
+      <select value={y || ''} onChange={e => set(Number(e.target.value), m||1, d||1)}
+        className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" required>
+        <option value="">년</option>
+        {D_YEARS.map(yr => <option key={yr} value={yr}>{yr}년</option>)}
+      </select>
+      <select value={m || ''} onChange={e => set(y||YEAR, Number(e.target.value), d||1)}
+        className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" required>
+        <option value="">월</option>
+        {MONTHS.map(mo => <option key={mo} value={mo}>{mo}월</option>)}
+      </select>
+      <select value={d || ''} onChange={e => set(y||YEAR, m||1, Number(e.target.value))}
+        className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" required>
+        <option value="">일</option>
+        {days.map(dy => <option key={dy} value={dy}>{dy}일</option>)}
+      </select>
+    </div>
+  )
+}
 
 export default function AdminLeavePage() {
   const [tab, setTab] = useState<TabType>('requests')
@@ -425,16 +461,14 @@ export default function AdminLeavePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {directForm.leave_type === 'annual' ? '시작일 *' : '날짜 *'}
                 </label>
-                <input type="date" value={directForm.start_date}
-                  onChange={e => setDirectForm(f => ({ ...f, start_date: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" required />
+                <DateSelects value={directForm.start_date}
+                  onChange={v => setDirectForm(f => ({ ...f, start_date: v }))} />
               </div>
               {directForm.leave_type === 'annual' ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">종료일 *</label>
-                  <input type="date" value={directForm.end_date} min={directForm.start_date}
-                    onChange={e => setDirectForm(f => ({ ...f, end_date: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" required />
+                  <DateSelects value={directForm.end_date} min={directForm.start_date}
+                    onChange={v => setDirectForm(f => ({ ...f, end_date: v }))} />
                 </div>
               ) : (
                 <>
@@ -468,9 +502,11 @@ export default function AdminLeavePage() {
               {directError && <p className="text-sm text-red-600">{directError}</p>}
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={() => setShowDirect(false)}
-                  className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">취소</button>
+                  className="flex-1 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50">
+                  취소
+                </button>
                 <button type="submit" disabled={directLoading}
-                  className="flex-1 bg-gray-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-50">
+                  className="flex-1 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
                   {directLoading ? '저장 중...' : '저장'}
                 </button>
               </div>
