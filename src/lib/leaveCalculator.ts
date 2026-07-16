@@ -3,49 +3,33 @@
  *
  * - 1년 미만: 1개월 개근 시 1일 발생 (최대 11일)
  * - 1년 이상: 15일 기본, 2년마다 1일 추가, 최대 25일
+ *
+ * 계산 기준: 해당 연도 내 도래하는 입사 기념일의 근속연수
  */
 
-/**
- * 특정 연도의 연차 부여일수 계산
- * @param hireDateStr 입사일 (YYYY-MM-DD)
- * @param targetYear  계산 대상 연도 (예: 2025)
- */
 export function calculateAnnualLeave(hireDateStr: string, targetYear: number): number {
   const hireDate = new Date(hireDateStr)
   hireDate.setHours(0, 0, 0, 0)
 
-  // targetYear 1월 1일 기준 근속연수 계산
-  const periodStart = new Date(targetYear, 0, 1)
+  const hireYear = hireDate.getFullYear()
 
-  // 아직 입사하지 않은 경우
-  if (hireDate >= new Date(targetYear + 1, 0, 1)) return 0
+  // 해당 연도에 아직 입사 전이면 0
+  if (hireYear > targetYear) return 0
 
-  // 근속 개월 수 (입사일~해당연도 1월 1일)
-  const yearsOfService = yearsBetween(hireDate, periodStart)
-  const monthsOfService = monthsBetween(hireDate, periodStart)
+  // 해당 연도의 입사 기념일 기준 근속연수
+  const yearsOfService = targetYear - hireYear
 
-  if (yearsOfService < 1) {
-    // 1년 미만: 개근 월수 = 연차 일수 (최대 11일)
-    // 입사 연도면 해당 연도 내 근무 개월 수
-    const monthsInYear = monthsBetween(
-      hireDate,
-      new Date(Math.min(new Date(targetYear + 1, 0, 1).getTime(), new Date().getTime()))
-    )
-    return Math.min(monthsInYear, 11)
+  if (yearsOfService === 0) {
+    // 입사 첫 해: 월 1일씩 (최대 11일)
+    const today = new Date()
+    const endOfTargetYear = new Date(targetYear + 1, 0, 1)
+    const calcTo = today < endOfTargetYear ? today : endOfTargetYear
+    return Math.min(monthsBetween(hireDate, calcTo), 11)
   }
 
-  // 1년 이상: 15일 + (근속연수-1)//2 일
+  // 1년 이상: 15일 + 2년마다 1일 추가 (최대 25일)
   const extraDays = Math.floor((yearsOfService - 1) / 2)
   return Math.min(15 + extraDays, 25)
-}
-
-function yearsBetween(from: Date, to: Date): number {
-  let years = to.getFullYear() - from.getFullYear()
-  const m = to.getMonth() - from.getMonth()
-  if (m < 0 || (m === 0 && to.getDate() < from.getDate())) {
-    years--
-  }
-  return Math.max(0, years)
 }
 
 function monthsBetween(from: Date, to: Date): number {
