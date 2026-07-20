@@ -222,7 +222,7 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
             ].map(({ label, value, color }) => (
               <div key={label} className="bg-white rounded-xl shadow-sm p-4 text-center">
                 <p className="text-xs text-gray-500 mb-1">{label}</p>
-                <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                <p className={`text-2xl font-bold ${color}`}>{Number(value) % 1 === 0 ? Number(value) : Number(value).toFixed(2)}</p>
                 <p className="text-xs text-gray-400">일</p>
               </div>
             ))}
@@ -254,7 +254,7 @@ export default function LeavePage({ params }: { params: Promise<{ token: string 
                         <span className="text-sm font-medium text-gray-900">
                           {req.leave_type === 'annual' ? '연차' : '시간연차'}
                         </span>
-                        <span className="text-sm text-gray-500">({req.used_days}일)</span>
+                        <span className="text-sm text-gray-500">({Number(req.used_days) % 1 === 0 ? Number(req.used_days) : Number(req.used_days).toFixed(2)}일)</span>
                       </div>
                       <p className="text-xs text-gray-500">{formatLeaveDetail(req)}</p>
                       {req.reason && <p className="text-xs text-gray-400 mt-0.5">{req.reason}</p>}

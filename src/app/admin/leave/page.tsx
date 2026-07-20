@@ -320,7 +320,7 @@ export default function AdminLeavePage() {
                       </td>
                       <td className="px-4 py-3 text-gray-600">{req.leave_type === 'annual' ? '연차' : '시간연차'}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{fmtDetail(req)}</td>
-                      <td className="px-4 py-3 text-gray-600">{req.used_days}일</td>
+                      <td className="px-4 py-3 text-gray-600">{Number(req.used_days) % 1 === 0 ? Number(req.used_days) : Number(req.used_days).toFixed(2)}일</td>
                       <td className="px-4 py-3 text-gray-500 max-w-32 truncate">{req.reason ?? '-'}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLOR[req.status]}`}>
@@ -379,12 +379,12 @@ export default function AdminLeavePage() {
                       <p className="text-xs text-gray-400">{s.department}</p>
                     </td>
                     <td className="px-4 py-3 text-gray-500">{s.hire_date ? fmt(s.hire_date) : '-'}</td>
-                    <td className="px-4 py-3 font-medium">{s.total_days}일</td>
-                    <td className="px-4 py-3 text-blue-600">{s.used_days}일</td>
-                    <td className="px-4 py-3 text-yellow-600">{s.pending_days}일</td>
+                    <td className="px-4 py-3 font-medium">{Number(s.total_days) % 1 === 0 ? Number(s.total_days) : Number(s.total_days).toFixed(2)}일</td>
+                    <td className="px-4 py-3 text-blue-600">{Number(s.used_days) % 1 === 0 ? Number(s.used_days) : Number(s.used_days).toFixed(2)}일</td>
+                    <td className="px-4 py-3 text-yellow-600">{Number(s.pending_days) % 1 === 0 ? Number(s.pending_days) : Number(s.pending_days).toFixed(2)}일</td>
                     <td className="px-4 py-3">
                       <span className={`font-semibold ${s.remaining_days <= 3 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {s.remaining_days}일
+                        {Number(s.remaining_days) % 1 === 0 ? Number(s.remaining_days) : Number(s.remaining_days).toFixed(2)}일
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -406,7 +406,7 @@ export default function AdminLeavePage() {
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold">{detailEmployee.name} 연차 내역</h2>
-                <p className="text-sm text-gray-500">{detailEmployee.department} · 총 {detailEmployee.total_days}일 중 {detailEmployee.used_days}일 사용</p>
+                <p className="text-sm text-gray-500">{detailEmployee.department} · 총 {Number(detailEmployee.total_days) % 1 === 0 ? Number(detailEmployee.total_days) : Number(detailEmployee.total_days).toFixed(2)}일 중 {Number(detailEmployee.used_days) % 1 === 0 ? Number(detailEmployee.used_days) : Number(detailEmployee.used_days).toFixed(2)}일 사용</p>
               </div>
               <div className="flex items-center gap-3">
                 <select value={detailYear}
@@ -435,7 +435,7 @@ export default function AdminLeavePage() {
                       <tr key={req.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                         <td className="px-4 py-3 text-gray-600">{req.leave_type === 'annual' ? '연차' : '시간연차'}</td>
                         <td className="px-4 py-3 text-gray-800 whitespace-nowrap">{fmtDetail(req)}</td>
-                        <td className="px-4 py-3 text-gray-600">{req.used_days}일</td>
+                        <td className="px-4 py-3 text-gray-600">{Number(req.used_days) % 1 === 0 ? Number(req.used_days) : Number(req.used_days).toFixed(2)}일</td>
                         <td className="px-4 py-3 text-gray-500 max-w-40 truncate">{req.reason ?? '-'}</td>
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLOR[req.status]}`}>
