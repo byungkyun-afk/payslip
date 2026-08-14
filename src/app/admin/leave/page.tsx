@@ -383,7 +383,7 @@ export default function AdminLeavePage() {
                     <td className="px-4 py-3 text-blue-600">{Number(s.used_days) % 1 === 0 ? Number(s.used_days) : Number(s.used_days).toFixed(2)}일</td>
                     <td className="px-4 py-3 text-yellow-600">{Number(s.pending_days) % 1 === 0 ? Number(s.pending_days) : Number(s.pending_days).toFixed(2)}일</td>
                     <td className="px-4 py-3">
-                      <span className={`font-semibold ${s.remaining_days <= 3 ? 'text-red-600' : 'text-emerald-600'}`}>
+                      <span className={`font-semibold ${s.remaining_days < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                         {Number(s.remaining_days) % 1 === 0 ? Number(s.remaining_days) : Number(s.remaining_days).toFixed(2)}일
                       </span>
                     </td>
